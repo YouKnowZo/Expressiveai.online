@@ -1,18 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../index';
-import { HfInference } from '@huggingface/inference';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 
 const router = Router();
-const hf = new HfInference(process.env.HF_TOKEN || '');
 
-// Redis connection for queue
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const videoQueue = new Queue('video-generation', { connection: redis });
 
-// Advanced Moderation
+const createBodySchema = z.object({
+  prompt: z.string().trim().min(3, 'Prompt must be at least 3 characters').max(2000),
+  negativePrompt: z.string().max(1000).optional(),
+  length: z.coerce.number().int().min(5).max(60).optional().default(5),
+  userId: z.string().min(1, 'userId is required'),
+  isPublic: z.boolean().optional().default(false),
+});
+
 const BLOCKED = /child|minor|underage|cp|loli|gore|snuff|murder|torture/i;
 const ARTISTIC = /artistic|fantasy|abstract|surreal|metaphor|mythological|stylized/i;
 
@@ -20,73 +25,116 @@ function moderatePromptContent(prompt: string): { allowed: boolean; reason?: str
   if (BLOCKED.test(prompt)) {
     return { allowed: false, reason: 'Illegal content detected per TOS.', isArtistic: false };
   }
+  return { allowed: true, isArtistic: ARTISTIC.test(prompt) };
+}
 
-  const isArtistic = ARTISTIC.test(prompt);
-  return { allowed: true, isArtistic };
+function maxSecondsForTier(tier: string | null | undefined): number {
+  const t = (tier || 'free').toLowerCase();
+  if (t === 'pro') return 30;
+  if (t === 'creator' || t === 'enterprise') return 60;
+  return 10;
+}
+
+async function logModerationBlock(prompt: string, reason: string | undefined, clerkId: string) {
+  try {
+    await supabase.from('moderation_logs').insert({
+      prompt,
+      reason,
+      user_id: clerkId,
+      blocked: true,
+    });
+  } catch {
+    /* table may not exist in all environments */
+  }
 }
 
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { prompt, negativePrompt, length = 5, userId, isPublic = false } = req.body;
-
-    if (!prompt || prompt.length < 3) {
-      return res.status(400).json({ error: 'Prompt must be at least 3 characters' });
+    const parsed = createBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.flatten().fieldErrors;
+      const first = Object.values(msg)[0]?.[0] || 'Invalid request';
+      return res.status(400).json({ error: first });
     }
 
-    if (length > (userId === 'free' ? 10 : userId === 'pro' ? 30 : 60)) {
-      return res.status(402).json({ error: 'Video length exceeds your plan limits' });
+    const { prompt, negativePrompt, length, userId: clerkId, isPublic } = parsed.data;
+
+    const { data: dbUser, error: userErr } = await supabase
+      .from('users')
+      .select('id, credits_remaining, tier, is_banned')
+      .eq('clerk_id', clerkId)
+      .single();
+
+    if (userErr || !dbUser) {
+      return res.status(404).json({
+        error: 'Account not found. Complete sign-up or contact support to sync your profile.',
+      });
     }
 
-    // Moderation
+    if (dbUser.is_banned) {
+      return res.status(403).json({ error: 'This account cannot create content.' });
+    }
+
+    const maxLen = maxSecondsForTier(dbUser.tier);
+    if (length > maxLen) {
+      return res.status(402).json({
+        error: `Video length exceeds your plan limit (${maxLen}s max). Upgrade to create longer clips.`,
+      });
+    }
+
     const moderation = moderatePromptContent(prompt);
     if (!moderation.allowed) {
-      await supabase.from('moderation_logs').insert({
-        prompt,
-        reason: moderation.reason,
-        user_id: userId,
-        blocked: true
-      });
+      await logModerationBlock(prompt, moderation.reason, clerkId);
       return res.status(400).json({ error: moderation.reason });
     }
 
-    // Check credits
-    const { data: user } = await supabase
-      .from('users')
-      .select('credits_remaining, tier')
-      .eq('clerk_id', userId)
-      .single();
-
-    if (!user || user.credits_remaining < 1) {
+    if (dbUser.credits_remaining < 1) {
       return res.status(429).json({ error: 'Insufficient credits. Upgrade to continue creating.' });
     }
 
-    // Create video record
     const videoId = uuidv4();
-    await supabase.from('videos').insert({
+    const { error: insertErr } = await supabase.from('videos').insert({
       id: videoId,
-      user_id: userId,
+      user_id: dbUser.id,
       prompt,
       negative_prompt: negativePrompt,
       length_seconds: length,
       is_public: isPublic,
-      status: 'pending'
+      status: 'pending',
     });
 
-    // Deduct credit
-    await supabase
+    if (insertErr) {
+      console.error('Video insert error:', insertErr);
+      return res.status(500).json({ error: 'Failed to create video record' });
+    }
+
+    const { error: deductErr } = await supabase
       .from('users')
-      .update({ credits_remaining: user.credits_remaining - 1 })
-      .eq('clerk_id', userId);
+      .update({ credits_remaining: dbUser.credits_remaining - 1 })
+      .eq('id', dbUser.id)
+      .eq('credits_remaining', dbUser.credits_remaining);
 
-    // Add to queue
-    await videoQueue.add('generate', {
-      videoId,
-      prompt: moderation.isArtistic ? `[ARTISTIC LICENSE] ${prompt}` : prompt,
-      negativePrompt,
-      length,
-      userId,
-      isArtistic: moderation.isArtistic
-    });
+    if (deductErr) {
+      await supabase.from('videos').delete().eq('id', videoId);
+      return res.status(500).json({ error: 'Could not reserve credits. Try again.' });
+    }
+
+    try {
+      await videoQueue.add('generate', {
+        videoId,
+        prompt: moderation.isArtistic ? `[ARTISTIC LICENSE] ${prompt}` : prompt,
+        negativePrompt,
+        length,
+        clerkId,
+        dbUserId: dbUser.id,
+        isArtistic: moderation.isArtistic,
+      });
+    } catch (queueError) {
+      console.error('Queue error:', queueError);
+      await supabase.from('users').update({ credits_remaining: dbUser.credits_remaining }).eq('id', dbUser.id);
+      await supabase.from('videos').delete().eq('id', videoId);
+      return res.status(503).json({ error: 'Generation queue unavailable. Credits were not consumed.' });
+    }
 
     res.json({
       success: true,
@@ -94,9 +142,9 @@ router.post('/', async (req: Request, res: Response) => {
       status: 'queued',
       estimatedTime: length * 2,
       artisticMode: moderation.isArtistic,
-      message: moderation.isArtistic 
-        ? "🎨 Artistic mode activated — your unique vision is being created" 
-        : "Your video is queued for generation"
+      message: moderation.isArtistic
+        ? '🎨 Artistic mode activated — your unique vision is being created'
+        : 'Your video is queued for generation',
     });
   } catch (error) {
     console.error('Generation error:', error);
@@ -121,20 +169,44 @@ router.get('/status/:videoId', async (req: Request, res: Response) => {
     videoUrl: video.video_url,
     thumbnailUrl: video.thumbnail_url,
     error: video.error_message,
-    progress: video.progress || 0
+    progress: video.progress ?? 0,
   });
 });
 
 router.get('/my-videos', async (req: Request, res: Response) => {
-  const { userId, limit = 20, offset = 0 } = req.query;
+  const clerkId = typeof req.query.userId === 'string' ? req.query.userId : '';
+  if (!clerkId) {
+    return res.status(400).json({ error: 'userId query parameter is required' });
+  }
+
+  const limit = Math.min(Number(req.query.limit) || 20, 50);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+  const { data: dbUser } = await supabase.from('users').select('id').eq('clerk_id', clerkId).single();
+  if (!dbUser) {
+    return res.json({ videos: [], total: 0 });
+  }
+
   const { data: videos, count } = await supabase
     .from('videos')
     .select('*', { count: 'exact' })
-    .eq('user_id', userId as string)
+    .eq('user_id', dbUser.id)
     .order('created_at', { ascending: false })
-    .range(Number(offset), Number(offset) + Number(limit) - 1);
+    .range(offset, offset + limit - 1);
 
-  res.json({ videos, total: count });
+  res.json({ videos: videos ?? [], total: count ?? 0 });
+});
+
+router.get('/public', async (_req: Request, res: Response) => {
+  const { data: videos } = await supabase
+    .from('videos')
+    .select('id, thumbnail_url, video_url, prompt, view_count')
+    .eq('is_public', true)
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+    .limit(24);
+
+  res.json({ videos: videos ?? [] });
 });
 
 export default router;

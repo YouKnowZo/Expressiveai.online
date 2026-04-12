@@ -4,34 +4,36 @@ import { motion } from 'framer-motion';
 import { useAuth, SignInButton } from '@clerk/nextjs';
 import { Sparkles, Zap, Check } from 'lucide-react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
+import { SiteHeader } from '@/components/SiteHeader';
+import { apiUrl } from '@/lib/api';
 
 export default function PricingPage() {
   const { isSignedIn, userId } = useAuth();
-  const router = useRouter();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handlePurchase = async (planId: string) => {
     if (!isSignedIn) return;
     setLoadingPlan(planId);
+    const toastId = toast.loading('Opening checkout…');
     try {
-      const res = await fetch('http://localhost:3001/api/payments/create-checkout-session', {
+      const res = await fetch(apiUrl('/api/payments/create-checkout-session'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, planId }),
       });
       const data = await res.json();
       if (data.url) {
+        toast.success('Redirecting to secure checkout', { id: toastId });
         window.location.href = data.url;
       } else {
-        alert(data.error || 'Failed to create checkout session');
+        toast.error(data.error || 'Could not start checkout', { id: toastId });
         setLoadingPlan(null);
       }
     } catch (err) {
       console.error(err);
+      toast.error('Network error — try again shortly', { id: toastId });
       setLoadingPlan(null);
     }
   };
@@ -43,7 +45,7 @@ export default function PricingPage() {
       credits: 50,
       price: '$5',
       icon: Sparkles,
-      features: ['50 Video Generations', 'Standard Quality', 'Standard Queue', 'Watermarked'],
+      features: ['50 generations', 'Standard quality', 'Standard queue', 'Watermark on export'],
     },
     {
       id: 'pro_200',
@@ -52,71 +54,69 @@ export default function PricingPage() {
       price: '$15',
       icon: Zap,
       popular: true,
-      features: ['200 Video Generations', 'High Quality 4K', 'Priority Queue', 'No Watermark', 'Commercial Rights'],
-    }
+      features: ['200 generations', 'High quality', 'Priority queue', 'No watermark', 'Commercial rights'],
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-             expressiveai.online
-          </Link>
-          <div className="flex items-center gap-4">
-             <Link href="/gallery" className="text-gray-600 hover:text-gray-900 transition">Gallery</Link>
-             <Link href="/dashboard" className="text-gray-600 hover:text-gray-900 transition">Dashboard</Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 flex flex-col text-slate-900">
+      <SiteHeader />
 
-      <main className="flex-grow pt-24 pb-16 px-6 max-w-7xl mx-auto text-center w-full">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.45 }}
+          className="text-center max-w-3xl mx-auto mb-12 sm:mb-16"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-16">
-            Buy exactly what you need. No monthly subscriptions required.
-          </p>
+          <p className="text-sm font-medium text-indigo-600 mb-2">Pricing</p>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">Simple, transparent credit packs</h1>
+          <p className="text-slate-600">Buy what you need. Subscriptions on the homepage outline ongoing tiers; here you top up credits anytime.</p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto text-left">
+        <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
           {plans.map((plan, i) => (
             <motion.div
               key={plan.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className={`relative bg-white rounded-3xl p-8 border ${plan.popular ? 'border-indigo-500 shadow-indigo-100 shadow-2xl' : 'border-gray-200 shadow-xl'}`}
+              transition={{ duration: 0.45, delay: i * 0.08 }}
+              className={`relative rounded-3xl p-8 border bg-white ${
+                plan.popular
+                  ? 'border-indigo-300 shadow-xl shadow-indigo-100 ring-1 ring-indigo-200/60'
+                  : 'border-slate-200 shadow-sm'
+              }`}
             >
               {plan.popular && (
-                <div className="absolute top-0 right-8 transform -translate-y-1/2">
-                  <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold tracking-wide">
-                    Most Popular
+                <div className="absolute -top-3 right-8">
+                  <span className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-md">
+                    Most popular
                   </span>
                 </div>
               )}
               <div className="flex items-center gap-4 mb-6">
-                <div className={`p-3 rounded-2xl ${plan.popular ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
-                  <plan.icon className="w-8 h-8" />
+                <div
+                  className={`p-3 rounded-2xl ${
+                    plan.popular ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  <plan.icon className="w-8 h-8" aria-hidden />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
-                  <p className="text-gray-500">{plan.credits} Credits</p>
+                  <h2 className="text-2xl font-bold text-slate-900">{plan.name}</h2>
+                  <p className="text-slate-500 text-sm">{plan.credits} credits</p>
                 </div>
               </div>
-              
+
               <div className="mb-8">
-                <span className="text-5xl font-extrabold text-gray-900">{plan.price}</span>
-                <span className="text-gray-500 ml-2">one-time</span>
+                <span className="text-5xl font-extrabold text-slate-900">{plan.price}</span>
+                <span className="text-slate-500 ml-2">one-time</span>
               </div>
 
-              <ul className="space-y-4 mb-8">
+              <ul className="space-y-3 mb-8">
                 {plan.features.map((feat, j) => (
-                  <li key={j} className="flex items-center gap-3 text-gray-700">
-                    <Check className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                  <li key={j} className="flex items-center gap-3 text-slate-700 text-sm">
+                    <Check className="w-5 h-5 text-indigo-500 flex-shrink-0" aria-hidden />
                     <span>{feat}</span>
                   </li>
                 ))}
@@ -124,26 +124,37 @@ export default function PricingPage() {
 
               {isSignedIn ? (
                 <button
+                  type="button"
                   onClick={() => handlePurchase(plan.id)}
                   disabled={loadingPlan === plan.id}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                  className={`w-full py-3.5 rounded-xl font-semibold text-base transition-all disabled:opacity-50 ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg'
-                      : 'bg-black text-white hover:bg-gray-800'
-                  } disabled:opacity-50`}
+                      ? 'text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 hover:shadow-lg'
+                      : 'bg-slate-900 text-white hover:bg-slate-800'
+                  }`}
                 >
-                  {loadingPlan === plan.id ? 'Processing...' : 'Buy Credits'}
+                  {loadingPlan === plan.id ? 'Processing…' : 'Buy credits'}
                 </button>
               ) : (
                 <SignInButton mode="modal">
-                  <button className="w-full py-4 rounded-xl font-bold text-lg border-2 border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-50 transition-all">
-                    Sign in to Purchase
+                  <button
+                    type="button"
+                    className="w-full py-3.5 rounded-xl font-semibold text-base border-2 border-slate-200 text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                  >
+                    Sign in to purchase
                   </button>
                 </SignInButton>
               )}
             </motion.div>
           ))}
         </div>
+
+        <p className="text-center text-sm text-slate-500 mt-12">
+          Questions?{' '}
+          <Link href="/" className="text-indigo-600 font-medium hover:underline">
+            Back to product
+          </Link>
+        </p>
       </main>
     </div>
   );

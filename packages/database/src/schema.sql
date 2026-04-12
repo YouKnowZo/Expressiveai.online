@@ -87,6 +87,7 @@ CREATE TABLE videos (
     thumbnail_url TEXT,
     watermark_version TEXT DEFAULT 'v2',
     status TEXT DEFAULT 'pending',
+    progress INT DEFAULT 0,
     error_message TEXT,
     cost_credits INT DEFAULT 1,
     is_public BOOLEAN DEFAULT false,

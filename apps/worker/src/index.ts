@@ -18,7 +18,13 @@ const supabase = createClient(
 const hf = new HfInference(process.env.HF_TOKEN || '');
 
 const worker = new Worker('video-generation', async (job) => {
-  const { videoId, prompt, length, userId, isArtistic } = job.data;
+  const { videoId, prompt, length, dbUserId, isArtistic } = job.data as {
+    videoId: string;
+    prompt: string;
+    length: number;
+    dbUserId: string;
+    isArtistic?: boolean;
+  };
   console.log(`Processing video ${videoId}: "${prompt.substring(0, 50)}..."`);
   
   try {
@@ -90,11 +96,11 @@ const worker = new Worker('video-generation', async (job) => {
     
     // Send notification (simplified)
     await supabase.from('notifications').insert({
-      user_id: userId,
+      user_id: dbUserId,
       type: 'video_ready',
       title: 'Your video is ready!',
       message: `"${prompt.substring(0, 50)}..." has been generated.`,
-      data: { videoId }
+      data: { videoId },
     });
     
     return { videoId, videoUrl, thumbnailUrl };

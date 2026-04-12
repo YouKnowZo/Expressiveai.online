@@ -1,7 +1,7 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Sparkles, ShieldCheck, Zap, Menu, X, Play, LogIn, Lock, Scale, Cpu, 
+  Sparkles, ShieldCheck, Zap, Menu, X, Play, PlayCircle, LogIn, Lock, Scale, Cpu, 
   Video, Timer, Ratio, Palette, Share2, Download, Heart, User, Check, Crown, ScanEye, Fingerprint, Ban
 } from 'lucide-react';
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
@@ -115,9 +115,9 @@ export default function LandingPage() {
       
       {/* Ambient Orbs */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute top-[-200px] left-[-100px] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] animate-pulse-soft"></div>
-        <div className="absolute top-[30%] right-[-200px] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[150px] animate-pulse-soft delay-200"></div>
-        <div className="absolute bottom-[-100px] left-[30%] w-[400px] h-[400px] bg-fuchsia-600/8 rounded-full blur-[120px] animate-pulse-soft delay-400"></div>
+        <div className="absolute top-[-200px] left-[-100px] w-[520px] h-[520px] bg-indigo-500/[0.06] rounded-full blur-[120px] animate-pulse-soft" />
+        <div className="absolute top-[28%] right-[-180px] w-[420px] h-[420px] bg-violet-500/[0.05] rounded-full blur-[110px] animate-pulse-soft delay-200" />
+        <div className="absolute bottom-[-80px] left-[25%] w-[360px] h-[360px] bg-sky-500/[0.04] rounded-full blur-[100px] animate-pulse-soft delay-400" />
       </div>
 
       {/* Navigation */}
@@ -191,7 +191,7 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pt-24 sm:pt-32 pb-8 text-center">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-8 text-center">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-xs font-mono text-fuchsia-300 mb-6">
             <div className="status-dot"></div>
@@ -227,10 +227,10 @@ export default function LandingPage() {
       </section>
 
       {/* Generator Section */}
-      <section id="generator" className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+      <section id="generator" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
         <motion.div 
           initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className={`glass-card rounded-3xl p-6 sm:p-8 transition-all ${isGenerating ? 'thinking-glow' : 'breathing-glow'}`}
+          className={`glass-card rounded-3xl p-6 sm:p-8 max-w-4xl mx-auto transition-all ${isGenerating ? 'thinking-glow' : 'breathing-glow'}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -349,7 +349,7 @@ export default function LandingPage() {
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section id="gallery" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <motion.div initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.03em] mb-4">
             Created with <span className="gradient-text-premium">ExpressiveAI</span>
@@ -392,7 +392,7 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section id="pricing" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <motion.div initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.03em] mb-4">
             Choose your <span className="gradient-text-premium">creative tier</span>
@@ -449,7 +449,7 @@ export default function LandingPage() {
       </section>
 
       {/* Security Section */}
-      <section id="security" className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section id="security" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <motion.div initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.03em] mb-4">
             Built with <span className="gradient-text-premium">iron-clad security</span>
@@ -497,8 +497,8 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-        <motion.div initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="glass-card breathing-glow rounded-3xl p-8 sm:p-12 text-center">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <motion.div initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} className="glass-card breathing-glow rounded-3xl p-8 sm:p-12 text-center max-w-4xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.03em] mb-4">
             Ready to <span className="gradient-text-premium">express</span>?
           </h2>

@@ -2,6 +2,9 @@
 node_modules/
 .pnpm-store/
 .cache/
+# Turbo
+.turbo/
+
 # Build outputs
 dist/
 build/
