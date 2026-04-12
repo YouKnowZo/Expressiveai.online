@@ -1,0 +1,9 @@
+{
+  "name": "@expressiveai/database",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "migrate": "echo 'Run DB migrations here'",
+    "seed": "echo 'Run DB seed here'"
+  }
+}

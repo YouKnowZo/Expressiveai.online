@@ -1,0 +1,5 @@
+apps/api/src/index.ts(2,18): error TS7016: Could not find a declaration file for module 'cors'. 'C:/Users/Mralo/.gemini/antigravity/scratch/Expressiveai.online/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/cors` if it exists or add a new declaration (.d.ts) file containing `declare module 'cors';`
+apps/api/src/index.ts(4,25): error TS7016: Could not find a declaration file for module 'compression'. 'C:/Users/Mralo/.gemini/antigravity/scratch/Expressiveai.online/node_modules/.pnpm/compression@1.8.1/node_modules/compression/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/compression` if it exists or add a new declaration (.d.ts) file containing `declare module 'compression';`
+apps/api/src/index.ts(7,20): error TS2307: Cannot find module 'dotenv' or its corresponding type declarations.
