@@ -1,9 +1,49 @@
-import { SignUp } from "@clerk/nextjs";
+import { SignUp } from '@clerk/nextjs';
+import Link from 'next/link';
+import { Sparkles } from 'lucide-react';
 
-export default function Page() {
+export const metadata = {
+  title: 'Create account',
+};
+
+export default function SignUpPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 px-4">
-      <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" appearance={{ variables: { colorPrimary: '#4f46e5' } }} />
+    <div className="deep-space-bg min-h-screen flex flex-col items-center justify-center px-4 py-12">
+
+      {/* Logo mark */}
+      <Link href="/" className="flex items-center gap-2.5 mb-10 group">
+        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <Sparkles className="w-5 h-5 text-white" aria-hidden />
+        </span>
+        <span className="text-lg font-bold tracking-tight gradient-text-premium">
+          expressiveai.online
+        </span>
+      </Link>
+
+      {/* 5 free credits nudge */}
+      <div className="mb-6 px-4 py-2.5 rounded-full glass-card text-xs font-semibold text-violet-300 flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5" aria-hidden />
+        Sign up and get 5 free credits — no card required
+      </div>
+
+      {/* Clerk component — appearance overridden globally in layout.tsx */}
+      <SignUp
+        path="/sign-up"
+        routing="path"
+        signInUrl="/sign-in"
+      />
+
+      <p className="mt-8 text-xs text-slate-600 text-center">
+        By creating an account you agree to our{' '}
+        <Link href="/#terms" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
+          Terms of Service
+        </Link>
+        {' '}and{' '}
+        <Link href="/#privacy" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

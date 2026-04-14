@@ -27,7 +27,8 @@ app.use(cors({
 app.use(express.json({ 
   limit: '50mb',
   verify: (req: any, res, buf) => {
-    if (req.originalUrl.startsWith('/api/payments/webhook')) {
+    if (req.originalUrl.startsWith('/api/payments/webhook') ||
+        req.originalUrl.startsWith('/api/webhooks/')) {
       req.rawBody = buf;
     }
   }
@@ -49,6 +50,7 @@ import adminRoutes from './routes/admin';
 import referralRoutes from './routes/referrals';
 import teamRoutes from './routes/teams';
 import analyticsRoutes from './routes/analytics';
+import webhookRoutes from './routes/webhooks';
 
 app.use('/api/generate', generateRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -57,6 +59,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

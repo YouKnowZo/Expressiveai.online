@@ -37,7 +37,7 @@ function maxSecondsForTier(tier: string | null | undefined): number {
 
 async function logModerationBlock(prompt: string, reason: string | undefined, clerkId: string) {
   try {
-    await supabase.from('moderation_logs').insert({
+    await supabase.from('moderation_queue').insert({
       prompt,
       reason,
       user_id: clerkId,
