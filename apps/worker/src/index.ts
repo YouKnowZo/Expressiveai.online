@@ -18,12 +18,14 @@ const supabase = createClient(
 const hf = new HfInference(process.env.HF_TOKEN || '');
 
 const worker = new Worker('video-generation', async (job) => {
-  const { videoId, prompt, length, dbUserId, isArtistic } = job.data as {
+  const { videoId, prompt, length, dbUserId, isArtistic, modelHint, quality } = job.data as {
     videoId: string;
     prompt: string;
     length: number;
     dbUserId: string;
     isArtistic?: boolean;
+    modelHint?: string;
+    quality?: 'economy' | 'standard' | 'premium';
   };
   console.log(`Processing video ${videoId}: "${prompt.substring(0, 50)}..."`);
   
@@ -36,9 +38,9 @@ const worker = new Worker('video-generation', async (job) => {
     const fullPrompt = artisticPrefix + prompt;
     
     // Determine model based on length
-    const model = length <= 10 
-      ? 'damo-vilab/text-to-video-ms-1.7b' 
-      : 'ali-vilab/text-to-video-ms-2.5b';
+    const model = modelHint || (length <= 10
+      ? 'damo-vilab/text-to-video-ms-1.7b'
+      : 'ali-vilab/text-to-video-ms-2.5b');
       
     await supabase.from('videos').update({ progress: 30 }).eq('id', videoId);
     
@@ -89,7 +91,8 @@ const worker = new Worker('video-generation', async (job) => {
       video_url: videoUrl,
       thumbnail_url: thumbnailUrl,
       progress: 100,
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
+      model_used: `${model}${quality ? ` (${quality})` : ''}`
     }).eq('id', videoId);
     
     console.log(`✅ Video ${videoId} completed`);

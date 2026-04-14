@@ -16,6 +16,7 @@ const createBodySchema = z.object({
   length: z.coerce.number().int().min(5).max(60).optional().default(5),
   userId: z.string().min(1, 'userId is required'),
   isPublic: z.boolean().optional().default(false),
+  quality: z.enum(['economy', 'standard', 'premium']).optional().default('standard'),
 });
 
 const BLOCKED = /child|minor|underage|cp|loli|gore|snuff|murder|torture/i;
@@ -33,6 +34,18 @@ function maxSecondsForTier(tier: string | null | undefined): number {
   if (t === 'pro') return 30;
   if (t === 'creator' || t === 'enterprise') return 60;
   return 10;
+}
+
+function estimateCreditCost(length: number, quality: 'economy' | 'standard' | 'premium'): number {
+  if (quality === 'economy') return Math.max(1, Math.ceil(length / 10));
+  if (quality === 'premium') return Math.max(2, Math.ceil(length / 6));
+  return Math.max(1, Math.ceil(length / 8));
+}
+
+function resolveModelHint(length: number, quality: 'economy' | 'standard' | 'premium'): string {
+  if (quality === 'economy') return 'damo-vilab/text-to-video-ms-1.7b';
+  if (quality === 'premium') return length > 10 ? 'ali-vilab/text-to-video-ms-2.5b' : 'stabilityai/stable-video-diffusion-img2vid-xt';
+  return length <= 10 ? 'damo-vilab/text-to-video-ms-1.7b' : 'ali-vilab/text-to-video-ms-2.5b';
 }
 
 async function logModerationBlock(prompt: string, reason: string | undefined, clerkId: string) {
@@ -57,7 +70,7 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: first });
     }
 
-    const { prompt, negativePrompt, length, userId: clerkId, isPublic } = parsed.data;
+    const { prompt, negativePrompt, length, userId: clerkId, isPublic, quality } = parsed.data;
 
     const { data: dbUser, error: userErr } = await supabase
       .from('users')
@@ -88,8 +101,61 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: moderation.reason });
     }
 
-    if (dbUser.credits_remaining < 1) {
-      return res.status(429).json({ error: 'Insufficient credits. Upgrade to continue creating.' });
+    const creditCost = estimateCreditCost(length, quality);
+    if (dbUser.credits_remaining < creditCost) {
+      return res.status(429).json({ error: `Insufficient credits. This render requires ${creditCost} credits.` });
+    }
+
+    const modelHint = resolveModelHint(length, quality);
+
+    // Cost optimization: for economy jobs, reuse existing completed renders when prompt/length match.
+    if (quality === 'economy') {
+      const { data: cachedVideo } = await supabase
+        .from('videos')
+        .select('video_url, thumbnail_url, model_used')
+        .eq('prompt', prompt)
+        .eq('length_seconds', length)
+        .eq('status', 'completed')
+        .not('video_url', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cachedVideo?.video_url) {
+        const videoId = uuidv4();
+        await supabase.from('videos').insert({
+          id: videoId,
+          user_id: dbUser.id,
+          prompt,
+          negative_prompt: negativePrompt,
+          length_seconds: length,
+          is_public: isPublic,
+          model_used: `${cachedVideo.model_used || modelHint} (cache-hit)`,
+          cost_credits: 1,
+          status: 'completed',
+          progress: 100,
+          video_url: cachedVideo.video_url,
+          thumbnail_url: cachedVideo.thumbnail_url,
+          completed_at: new Date().toISOString(),
+        });
+
+        await supabase
+          .from('users')
+          .update({ credits_remaining: dbUser.credits_remaining - 1 })
+          .eq('id', dbUser.id)
+          .eq('credits_remaining', dbUser.credits_remaining);
+
+        return res.json({
+          success: true,
+          videoId,
+          status: 'completed',
+          estimatedTime: 1,
+          quality,
+          costCredits: 1,
+          cacheHit: true,
+          message: 'Reused a previous render to reduce cost and delivery time.',
+        });
+      }
     }
 
     const videoId = uuidv4();
@@ -101,6 +167,8 @@ router.post('/', async (req: Request, res: Response) => {
       length_seconds: length,
       is_public: isPublic,
       status: 'pending',
+      cost_credits: creditCost,
+      model_used: modelHint,
     });
 
     if (insertErr) {
@@ -110,7 +178,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const { error: deductErr } = await supabase
       .from('users')
-      .update({ credits_remaining: dbUser.credits_remaining - 1 })
+      .update({ credits_remaining: dbUser.credits_remaining - creditCost })
       .eq('id', dbUser.id)
       .eq('credits_remaining', dbUser.credits_remaining);
 
@@ -128,6 +196,8 @@ router.post('/', async (req: Request, res: Response) => {
         clerkId,
         dbUserId: dbUser.id,
         isArtistic: moderation.isArtistic,
+        quality,
+        modelHint,
       });
     } catch (queueError) {
       console.error('Queue error:', queueError);
@@ -142,6 +212,8 @@ router.post('/', async (req: Request, res: Response) => {
       status: 'queued',
       estimatedTime: length * 2,
       artisticMode: moderation.isArtistic,
+      quality,
+      costCredits: creditCost,
       message: moderation.isArtistic
         ? '🎨 Artistic mode activated — your unique vision is being created'
         : 'Your video is queued for generation',
@@ -179,6 +251,7 @@ router.get('/my-videos', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'userId query parameter is required' });
   }
 
+  const status = typeof req.query.status === 'string' ? req.query.status : '';
   const limit = Math.min(Number(req.query.limit) || 20, 50);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
 
@@ -187,12 +260,17 @@ router.get('/my-videos', async (req: Request, res: Response) => {
     return res.json({ videos: [], total: 0 });
   }
 
-  const { data: videos, count } = await supabase
+  let query = supabase
     .from('videos')
     .select('*', { count: 'exact' })
     .eq('user_id', dbUser.id)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
+
+  if (status) {
+    query = query.eq('status', status);
+  }
+
+  const { data: videos, count } = await query.range(offset, offset + limit - 1);
 
   res.json({ videos: videos ?? [], total: count ?? 0 });
 });
