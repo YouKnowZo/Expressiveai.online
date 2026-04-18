@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 
 const thinkingMessages = [
   'Interpreting creative vision...',
@@ -271,19 +270,19 @@ export default function LandingPage() {
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-card text-sm">
                   <Timer className="w-4 h-4 text-slate-500" />
                   <select disabled={isGenerating} className="bg-transparent text-slate-300 outline-none cursor-pointer text-sm [&>option]:bg-slate-900">
-                    <option value="5">5s</option><option value="10">10s</option>
+                    <option value="5">5s</option><option value="10">10s</option><option value="15">15s</option><option value="30">30s</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-card text-sm">
                   <Ratio className="w-4 h-4 text-slate-500" />
                   <select disabled={isGenerating} className="bg-transparent text-slate-300 outline-none cursor-pointer text-sm [&>option]:bg-slate-900">
-                    <option value="16:9">16:9</option><option value="9:16">9:16</option>
+                    <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
                   </select>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-card text-sm">
                   <Palette className="w-4 h-4 text-slate-500" />
                   <select disabled={isGenerating} className="bg-transparent text-slate-300 outline-none cursor-pointer text-sm [&>option]:bg-slate-900">
-                    <option value="cinematic">Cinematic</option><option value="surreal">Surreal</option>
+                    <option value="cinematic">Cinematic</option><option value="anime">Anime</option><option value="surreal">Surreal</option><option value="photorealistic">Photorealistic</option>
                   </select>
                 </div>
               </div>
@@ -360,13 +359,16 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
            {/* Replace URLs with solid gradient placeholders since static photos won't load */}
            {[
-             { prompt: "A surreal dreamscape where colors melt into music, ethereal waves of sound made visible", time: "10s", ratio: "16:9", bg: "from-indigo-600 to-purple-600" },
-             { prompt: "An enchanted forest at twilight, bioluminescent mushrooms glowing in harmonious rhythm", time: "15s", ratio: "16:9", bg: "from-emerald-600 to-teal-600" },
-             { prompt: "A neural network becoming conscious, data streams weaving into thoughts made of light", time: "10s", ratio: "1:1", bg: "from-cyan-600 to-blue-600" }
+             { prompt: "A surreal dreamscape where colors melt into music, ethereal waves of sound made visible", time: "10s", ratio: "16:9", image: "https://static.photos/abstract/640x360/1" },
+             { prompt: "An enchanted forest at twilight, bioluminescent mushrooms glowing in harmonious rhythm", time: "15s", ratio: "16:9", image: "https://static.photos/nature/640x360/2" },
+             { prompt: "A neural network becoming conscious, data streams weaving into thoughts made of light", time: "10s", ratio: "1:1", image: "https://static.photos/technology/640x360/3" },
+             { prompt: "A monochrome cityscape dissolving into pure geometric abstraction, architecture becoming art", time: "5s", ratio: "9:16", image: "https://static.photos/minimal/640x360/4" },
+             { prompt: "A vintage film dreamscape, VHS grain and analog warmth bleeding through time", time: "30s", ratio: "16:9", image: "https://static.photos/vintage/640x360/5" },
+             { prompt: "An aerial journey through a cosmic ocean, nebula clouds forming and reforming endlessly", time: "10s", ratio: "16:9", image: "https://static.photos/aerial/640x360/6" }
            ].map((g, i) => (
              <motion.div key={i} initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} transition={{delay: i * 0.1}} className="group glass-card glass-card-hover rounded-3xl overflow-hidden transition-all duration-300">
                <div className="relative">
-                 <div className={`w-full aspect-video object-cover video-preview bg-gradient-to-br ${g.bg} opacity-50`}></div>
+                 <img src={g.image} alt={g.prompt} className="w-full aspect-video object-cover video-preview" />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                    <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
                      <Play className="w-4 h-4 text-white pl-0.5" />
@@ -407,9 +409,11 @@ export default function LandingPage() {
               <div><h3 className="text-lg font-bold text-white">Free</h3><p className="text-xs text-slate-500">Explore & experiment</p></div>
             </div>
             <div className="mb-6"><span className="text-4xl font-extrabold text-white">$0</span><span className="text-slate-500">/month</span></div>
-            <ul className="space-y-3 mb-8">
+              <ul className="space-y-3 mb-8">
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 5 videos per day</li>
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 10s max duration</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> 720p resolution</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-green-500 flex-shrink-0"/> Forensic watermarking</li>
               <li className="flex items-center gap-3 text-sm text-slate-500"><X className="w-4 h-4 text-slate-600 flex-shrink-0"/> No commercial license</li>
             </ul>
             <button className="w-full py-3 rounded-full glass-card glass-card-hover text-sm font-semibold text-slate-300 transition-all">Get Started Free</button>
@@ -426,7 +430,9 @@ export default function LandingPage() {
             <ul className="space-y-3 mb-8">
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-indigo-400 flex-shrink-0"/> 200 videos per month</li>
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-indigo-400 flex-shrink-0"/> 30s max duration</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-indigo-400 flex-shrink-0"/> 1080p resolution</li>
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-indigo-400 flex-shrink-0"/> Priority GPU queue</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-indigo-400 flex-shrink-0"/> Commercial license</li>
             </ul>
             <button className="w-full py-3 rounded-full btn-premium text-sm font-semibold text-white transition-all">Upgrade to Pro</button>
           </motion.div>
@@ -442,6 +448,8 @@ export default function LandingPage() {
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-purple-400 flex-shrink-0"/> Unlimited videos</li>
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-purple-400 flex-shrink-0"/> 60s max duration</li>
               <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-purple-400 flex-shrink-0"/> 4K resolution</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-purple-400 flex-shrink-0"/> Instant GPU access</li>
+              <li className="flex items-center gap-3 text-sm text-slate-300"><Check className="w-4 h-4 text-purple-400 flex-shrink-0"/> Full commercial license</li>
             </ul>
             <button className="w-full py-3 rounded-full glass-card glass-card-hover text-sm font-semibold text-purple-300 border-purple-500/30 transition-all border">Go Creator Mode</button>
           </motion.div>
@@ -557,7 +565,7 @@ export default function LandingPage() {
                   </div>
                   <span className="text-sm font-bold gradient-text-premium">expressiveai.online</span>
                 </div>
-                <p className="text-xs text-slate-600">© 2026 Owned and operated by Lockett Creative LLC. All rights reserved.</p>
+                <p className="text-xs text-slate-600">© 2025 Owned and operated by Lockett Creative LLC. All rights reserved.</p>
               </div>
             </div>
           </div>
