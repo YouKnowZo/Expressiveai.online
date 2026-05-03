@@ -2,6 +2,22 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../index';
 import { z } from 'zod';
 
+type SupabaseUserRecord = {
+  id: string;
+  clerk_id: string;
+  email: string;
+  username: string;
+  avatar_url: string | null;
+  credits_remaining: number | null;
+  tier: string | null;
+  total_videos: number | null;
+  is_banned: boolean | null;
+  email_notifications: boolean | null;
+  public_profile: boolean | null;
+  created_at: string;
+  updated_at: string;
+};
+
 const router = Router();
 
 // ---------------------------------------------------------------------------
@@ -14,7 +30,7 @@ router.get('/me', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'userId query parameter is required' });
   }
 
-  const { data: user, error } = await supabase
+  const { data, error } = await supabase
     .from('users')
     .select(
       'id, clerk_id, email, username, avatar_url, credits_remaining, tier, ' +
@@ -22,6 +38,8 @@ router.get('/me', async (req: Request, res: Response) => {
     )
     .eq('clerk_id', clerkId)
     .single();
+
+  const user = data as SupabaseUserRecord | null;
 
   if (error || !user) {
     return res.status(404).json({ error: 'User not found' });

@@ -68,7 +68,8 @@ export async function addForensicWatermark(
   const signature = buildSignature(metadata, timestamp);
 
   return new Promise<void>((resolve, reject) => {
-    ffmpeg(inputPath)
+    const command = ffmpeg(inputPath) as any;
+    command
       // ── Copy all streams verbatim — no quality loss ────────────────────
       .outputOptions('-c copy')
       // ── Preserve existing metadata then layer ours on top ─────────────
@@ -122,7 +123,11 @@ export async function readForensicMetadata(filePath: string): Promise<ForensicSi
     ffmpeg.ffprobe(filePath, (err, data) => {
       if (err) return reject(err);
 
-      const tags: Record<string, string> = data?.format?.tags ?? {};
+      const rawTags = (data?.format?.tags ?? {}) as Record<string, string | number>;
+      const tags = Object.entries(rawTags).reduce<Record<string, string>>((acc, [key, value]) => {
+        acc[key] = value == null ? '' : String(value);
+        return acc;
+      }, {});
 
       resolve({
         userId:    tags['xai_user_id']  ?? null,
