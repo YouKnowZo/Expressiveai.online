@@ -175,6 +175,7 @@ export default function GalleryPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {videos.map((vid, idx) => {
               const liked = likedIds.has(vid.id);
+              const hasPlayableVideo = typeof vid.video_url === 'string' && /^https?:\/\//i.test(vid.video_url);
               return (
                 <motion.div
                   key={vid.id}
@@ -185,7 +186,19 @@ export default function GalleryPage() {
                 >
                   {/* Thumbnail */}
                   <div className="relative h-64 bg-white/[0.03] overflow-hidden">
-                    {vid.thumbnail_url ? (
+                    {hasPlayableVideo ? (
+                      <video
+                        src={vid.video_url ?? undefined}
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                        onError={(event) => {
+                          const target = event.currentTarget as HTMLVideoElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    ) : vid.thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={vid.thumbnail_url}
@@ -199,9 +212,9 @@ export default function GalleryPage() {
                     )}
 
                     {/* Play overlay */}
-                    {vid.video_url && vid.video_url !== '#' ? (
+                    {hasPlayableVideo ? (
                       <a
-                        href={vid.video_url}
+                        href={vid.video_url!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300"

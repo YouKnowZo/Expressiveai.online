@@ -17,6 +17,27 @@ const thinkingMessages = [
   'Finalizing output...'
 ];
 
+const demoVideos = [
+  {
+    prompt: 'A surreal dreamscape where colors melt into music, ethereal waves of sound made visible',
+    time: '10s',
+    ratio: '16:9',
+    src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+  },
+  {
+    prompt: 'An enchanted forest at twilight, bioluminescent mushrooms glowing in harmonious rhythm',
+    time: '15s',
+    ratio: '16:9',
+    src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm',
+  },
+  {
+    prompt: 'A neural network becoming conscious, data streams weaving into thoughts made of light',
+    time: '10s',
+    ratio: '1:1',
+    src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+  },
+];
+
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -358,15 +379,22 @@ export default function LandingPage() {
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-           {/* Replace URLs with solid gradient placeholders since static photos won't load */}
-           {[
-             { prompt: "A surreal dreamscape where colors melt into music, ethereal waves of sound made visible", time: "10s", ratio: "16:9", bg: "from-indigo-600 to-purple-600" },
-             { prompt: "An enchanted forest at twilight, bioluminescent mushrooms glowing in harmonious rhythm", time: "15s", ratio: "16:9", bg: "from-emerald-600 to-teal-600" },
-             { prompt: "A neural network becoming conscious, data streams weaving into thoughts made of light", time: "10s", ratio: "1:1", bg: "from-cyan-600 to-blue-600" }
-           ].map((g, i) => (
+           {demoVideos.map((g, i) => (
              <motion.div key={i} initial={{opacity:0, y:30}} whileInView={{opacity:1, y:0}} viewport={{once:true}} transition={{delay: i * 0.1}} className="group glass-card glass-card-hover rounded-3xl overflow-hidden transition-all duration-300">
                <div className="relative">
-                 <div className={`w-full aspect-video object-cover video-preview bg-gradient-to-br ${g.bg} opacity-50`}></div>
+                 <video
+                   src={g.src}
+                   className="w-full aspect-video object-cover bg-slate-950"
+                   muted
+                   loop
+                   playsInline
+                   autoPlay
+                   preload="metadata"
+                   onError={(event) => {
+                     const target = event.currentTarget as HTMLVideoElement;
+                     target.style.display = 'none';
+                   }}
+                 />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                    <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
                      <Play className="w-4 h-4 text-white pl-0.5" />
