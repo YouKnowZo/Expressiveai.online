@@ -29,11 +29,11 @@ export default function SignInPage() {
 
       <p className="mt-8 text-xs text-slate-600 text-center">
         By signing in you agree to our{' '}
-        <Link href="/#terms" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
+        <Link href="/terms" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
           Terms of Service
         </Link>
         {' '}and{' '}
-        <Link href="/#privacy" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
+        <Link href="/privacy" className="text-slate-500 hover:text-slate-300 transition-colors underline underline-offset-2">
           Privacy Policy
         </Link>
         .

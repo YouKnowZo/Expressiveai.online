@@ -527,9 +527,10 @@ export default function LandingPage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-slate-500">
-                <li className="hover:text-slate-300 cursor-pointer">Terms of Service</li>
-                <li className="hover:text-slate-300 cursor-pointer">Privacy Policy</li>
-                <li className="hover:text-slate-300 cursor-pointer">Section 230 Notice</li>
+                <li><Link href="/terms" className="hover:text-slate-300">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-slate-300">Privacy Policy</Link></li>
+                <li><Link href="/disclaimer" className="hover:text-slate-300">Disclaimers</Link></li>
+                <li><Link href="/cookies" className="hover:text-slate-300">Cookie Policy</Link></li>
               </ul>
             </div>
             <div>
@@ -557,7 +558,7 @@ export default function LandingPage() {
                   </div>
                   <span className="text-sm font-bold gradient-text-premium">expressiveai.online</span>
                 </div>
-                <p className="text-xs text-slate-600">© 2026 Owned and operated by Lockett Creative LLC. All rights reserved.</p>
+                <p className="text-xs text-slate-600">© 2026 by paperbagexpress All rights reserved.</p>
               </div>
             </div>
           </div>
