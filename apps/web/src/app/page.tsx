@@ -531,13 +531,16 @@ export default function LandingPage() {
                 <li><Link href="/privacy" className="hover:text-slate-300">Privacy Policy</Link></li>
                 <li><Link href="/disclaimer" className="hover:text-slate-300">Disclaimers</Link></li>
                 <li><Link href="/cookies" className="hover:text-slate-300">Cookie Policy</Link></li>
+                <li><Link href="/dmca" className="hover:text-slate-300">DMCA / Copyright</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white mb-4">Security</h4>
+              <h4 className="text-sm font-semibold text-white mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-slate-500">
+                <li><Link href="/contact" className="hover:text-slate-300">Contact</Link></li>
+                <li><Link href="/refunds" className="hover:text-slate-300">Refund policy</Link></li>
+                <li><Link href="/acceptable-use" className="hover:text-slate-300">Acceptable use</Link></li>
                 <li><button onClick={() => handleScrollTo('security')} className="hover:text-slate-300">Watermarking</button></li>
-                <li className="hover:text-slate-300 cursor-pointer">Content Policy</li>
               </ul>
             </div>
             <div>

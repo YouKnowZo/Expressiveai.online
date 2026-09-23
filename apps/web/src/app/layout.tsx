@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Toaster } from 'react-hot-toast';
+import { CookieConsent } from '../components/CookieConsent';
 import './globals.css';
 
 // ---------------------------------------------------------------------------
@@ -154,6 +155,7 @@ export default function RootLayout({
           } font-sans antialiased bg-[#0b0f19] text-slate-100 selection:bg-fuchsia-500/30`}
         >
           {children}
+          <CookieConsent />
 
           <Toaster
             position="bottom-right"
