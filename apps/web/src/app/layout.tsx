@@ -30,7 +30,12 @@ export const viewport: Viewport = {
 // ---------------------------------------------------------------------------
 // Metadata
 // ---------------------------------------------------------------------------
-const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'https://expressiveai.online';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? (() => {
+        throw new Error('NEXT_PUBLIC_APP_URL is required in production. Set it in the deployment environment or apps/web/.env.example.');
+      })()
+    : 'https://expressiveai.online');
 const SITE_NAME = 'ExpressiveAI';
 const TITLE     = 'ExpressiveAI — Create AI Videos Without Boundaries';
 const DESCRIPTION =

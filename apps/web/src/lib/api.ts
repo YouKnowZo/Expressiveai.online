@@ -1,12 +1,17 @@
 /**
  * Base URL for the Express API (no trailing slash).
- * Set NEXT_PUBLIC_API_URL in production (e.g. https://api.expressiveai.online).
+ * Production builds require NEXT_PUBLIC_API_URL to be set explicitly.
  */
 export function getApiBase(): string {
-  if (typeof window !== 'undefined') {
-    return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+
+  if (process.env.NODE_ENV === 'production' && (!configured || configured.trim() === '')) {
+    throw new Error(
+      'NEXT_PUBLIC_API_URL is required in production. Set it in the deployment environment or apps/web/.env.example.',
+    );
   }
-  return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+
+  return (configured || 'http://localhost:3001').replace(/\/$/, '');
 }
 
 export function apiUrl(path: string): string {

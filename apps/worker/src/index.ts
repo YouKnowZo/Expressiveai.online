@@ -21,9 +21,11 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import dotenv from 'dotenv';
+import { validateRuntimeEnv } from './config';
 import { addForensicWatermark } from './utils/watermark';
 
 dotenv.config();
+validateRuntimeEnv(process.env, process.env.NODE_ENV === 'production');
 
 // ---------------------------------------------------------------------------
 // Clients

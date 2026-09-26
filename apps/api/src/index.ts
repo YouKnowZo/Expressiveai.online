@@ -5,17 +5,18 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { validateRuntimeEnv } from './config';
 
 dotenv.config();
+validateRuntimeEnv(process.env, process.env.NODE_ENV === 'production');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Initialize Supabase
-export const supabase = createClient(
-  process.env.SUPABASE_URL || 'http://localhost:5432',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'anon'
-);
+const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:5432';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'anon';
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware
 app.use(helmet());
