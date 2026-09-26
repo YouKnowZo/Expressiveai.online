@@ -7,6 +7,7 @@ import {
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { apiUrl } from '@/lib/api';
 
 const thinkingMessages = [
   'Interpreting creative vision...',
@@ -39,7 +40,7 @@ const demoVideos = [
 ];
 
 export default function LandingPage() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -76,7 +77,7 @@ export default function LandingPage() {
     setMobileMenuOpen(false);
   };
 
-  const handleGenerateClick = () => {
+  const handleGenerateClick = async () => {
     if (showResult) {
       // Reset
       setShowResult(false);
@@ -97,6 +98,51 @@ export default function LandingPage() {
       setGeneratorStatus('No credits remaining — upgrade your tier');
       setStatusColor('text-amber-400');
       return;
+    }
+
+    if (isSignedIn && userId) {
+      try {
+        setIsGenerating(true);
+        setGeneratorStatus('Queueing generation...');
+        setStatusColor('text-slate-400');
+        setThinkingIndex(0);
+        setProgress(0);
+        setShowResult(false);
+
+        const response = await fetch(apiUrl('/api/generate'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: prompt.trim(),
+            description: prompt.trim(),
+            userId,
+            length: 5,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to queue generation.');
+        }
+
+        setProgress(100);
+        setIsGenerating(false);
+        setShowResult(true);
+        setResultPrompt(`"${prompt.trim()}"`);
+        setGeneratorStatus(data.artisticMode ? '🎨 Artistic mode enabled' : 'Generation queued');
+        setStatusColor('text-green-400');
+        setTimeout(() => {
+          setGeneratorStatus('Ready to create');
+          setStatusColor('text-slate-500');
+        }, 3000);
+        return;
+      } catch (error) {
+        console.error('Landing generation request failed:', error);
+        setGeneratorStatus(error instanceof Error ? error.message : 'Generation failed. Try again.');
+        setStatusColor('text-red-400');
+        setIsGenerating(false);
+        return;
+      }
     }
 
     // Start Generation Simulation

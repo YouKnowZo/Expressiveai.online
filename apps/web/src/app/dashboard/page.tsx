@@ -184,7 +184,12 @@ export default function Dashboard() {
       const res = await fetch(apiUrl('/api/generate'), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim(), userId, length: lengthSec }),
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          description: prompt.trim(),
+          userId,
+          length: lengthSec,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to queue generation');

@@ -3,20 +3,12 @@ import { supabase } from '../index';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import { z } from 'zod';
+import { createBodySchema } from './generate-schema';
 
 const router = Router();
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const videoQueue = new Queue('video-generation', { connection: redis });
-
-const createBodySchema = z.object({
-  prompt: z.string().trim().min(3, 'Prompt must be at least 3 characters').max(2000),
-  negativePrompt: z.string().max(1000).optional(),
-  length: z.coerce.number().int().min(5).max(60).optional().default(5),
-  userId: z.string().min(1, 'userId is required'),
-  isPublic: z.boolean().optional().default(false),
-});
 
 const BLOCKED = /child|minor|underage|cp|loli|gore|snuff|murder|torture/i;
 const ARTISTIC = /artistic|fantasy|abstract|surreal|metaphor|mythological|stylized/i;
