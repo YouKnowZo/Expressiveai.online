@@ -128,13 +128,17 @@ toolchain, not to the application.
 
    ```yaml
    - name: Fetch web build secrets from Infisical
-     uses: Infisical/secrets-action@v1
+     uses: Infisical/secrets-action@v1.0.18
      with:
        client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
        client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
        project-slug: expressiveai-web
        env-slug: prod
    ```
+
+   Pin the tag: the action publishes `v1.0.x` releases and has no floating `v1` ref, so
+   `uses: Infisical/secrets-action@v1` fails the job at `Set up job` with "unable to find
+   version `v1`" before a single step runs.
 
    The action exports every secret in that project/environment to the rest of the job and registers
    each as a masked value, so keep `expressiveai-web` limited to `NEXT_PUBLIC_*` keys. Those four
