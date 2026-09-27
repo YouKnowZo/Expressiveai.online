@@ -8,6 +8,8 @@ export const requiredProductionEnvVars = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'CLERK_WEBHOOK_SECRET',
+  'CLERK_ISSUER',
+  'CLERK_JWKS_URL',
   'HF_TOKEN',
   'STORAGE_BUCKET',
 ] as const;

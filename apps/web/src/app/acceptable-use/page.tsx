@@ -38,7 +38,7 @@ export default function AcceptableUsePage() {
             <section>
               <h2 className="mb-3 text-lg font-semibold text-white">Prohibited activity</h2>
               <p>
-                Prohibited activities include bypassing access controls, exploiting vulnerabilities, mass scraping, manipulating billing, unauthorized automated use, fraud, impersonation, and misuse of AI outputs for deception or harm.
+                Prohibited activities include bypassing access controls, exploiting vulnerabilities, mass scraping, manipulating billing, unauthorized automated use, fraud, non-consensual impersonation, and misuse of AI outputs to deceive, harass, or harm others. Do not present generated video as authentic footage or use another person’s likeness, voice, or copyrighted material without the necessary rights and consent.
               </p>
             </section>
 

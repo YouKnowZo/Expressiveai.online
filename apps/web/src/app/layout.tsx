@@ -39,9 +39,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ||
 const SITE_NAME = 'ExpressiveAI';
 const TITLE     = 'ExpressiveAI — Create AI Videos Without Boundaries';
 const DESCRIPTION =
-  'Transform any idea into stunning AI-generated video clips in seconds. ' +
-  'Cinematic quality, forensic watermarking, instant delivery. ' +
-  'Start free — 5 credits on sign-up.';
+  'Create AI-generated videos from a prompt, with clear duration controls, responsible-use guidance, and a personal video library. ' +
+  'Start creating with ExpressiveAI.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
@@ -137,7 +136,7 @@ export default function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary:    '#8b5cf6',
+          colorPrimary:    '#818cf8',
           colorBackground: '#0b0f19',
           colorText:       '#f1f5f9',
           colorInputBackground: '#1e293b',

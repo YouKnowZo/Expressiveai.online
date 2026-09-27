@@ -3,11 +3,12 @@ import { supabase } from '../index';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import { createBodySchema } from './generate-schema';
+import { createBodySchema, maxSecondsForTier } from './generate-schema';
+import { authenticatedClerkId } from '../auth';
 
 const router = Router();
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
 const videoQueue = new Queue('video-generation', { connection: redis });
 
 const BLOCKED = /child|minor|underage|cp|loli|gore|snuff|murder|torture/i;
@@ -18,13 +19,6 @@ function moderatePromptContent(prompt: string): { allowed: boolean; reason?: str
     return { allowed: false, reason: 'Illegal content detected per TOS.', isArtistic: false };
   }
   return { allowed: true, isArtistic: ARTISTIC.test(prompt) };
-}
-
-function maxSecondsForTier(tier: string | null | undefined): number {
-  const t = (tier || 'free').toLowerCase();
-  if (t === 'pro') return 30;
-  if (t === 'creator' || t === 'enterprise') return 60;
-  return 10;
 }
 
 async function logModerationBlock(prompt: string, reason: string | undefined, clerkId: string) {
@@ -49,7 +43,9 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: first });
     }
 
-    const { prompt, negativePrompt, length, userId: clerkId, isPublic } = parsed.data;
+    const { prompt, negativePrompt, length, isPublic } = parsed.data;
+    const clerkId = await authenticatedClerkId(req, res);
+    if (!clerkId) return;
 
     const { data: dbUser, error: userErr } = await supabase
       .from('users')
@@ -132,7 +128,7 @@ router.post('/', async (req: Request, res: Response) => {
       success: true,
       videoId,
       status: 'queued',
-      estimatedTime: length * 2,
+      estimatedTime: Math.max(30, length * 4),
       artisticMode: moderation.isArtistic,
       message: moderation.isArtistic
         ? '🎨 Artistic mode activated — your unique vision is being created'
@@ -146,11 +142,18 @@ router.post('/', async (req: Request, res: Response) => {
 
 router.get('/status/:videoId', async (req: Request, res: Response) => {
   const { videoId } = req.params;
+  const clerkId = await authenticatedClerkId(req, res);
+  if (!clerkId) return;
+
+  const { data: account } = await supabase.from('users').select('id').eq('clerk_id', clerkId).maybeSingle();
+  if (!account) return res.status(404).json({ error: 'Video not found' });
+
   const { data: video } = await supabase
     .from('videos')
     .select('status, video_url, thumbnail_url, error_message, progress')
     .eq('id', videoId)
-    .single();
+    .eq('user_id', account.id)
+    .maybeSingle();
 
   if (!video) {
     return res.status(404).json({ error: 'Video not found' });
@@ -166,10 +169,8 @@ router.get('/status/:videoId', async (req: Request, res: Response) => {
 });
 
 router.get('/my-videos', async (req: Request, res: Response) => {
-  const clerkId = typeof req.query.userId === 'string' ? req.query.userId : '';
-  if (!clerkId) {
-    return res.status(400).json({ error: 'userId query parameter is required' });
-  }
+  const clerkId = await authenticatedClerkId(req, res);
+  if (!clerkId) return;
 
   const limit = Math.min(Number(req.query.limit) || 20, 50);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
@@ -192,7 +193,7 @@ router.get('/my-videos', async (req: Request, res: Response) => {
 router.get('/public', async (_req: Request, res: Response) => {
   const { data: videos } = await supabase
     .from('videos')
-    .select('id, thumbnail_url, video_url, prompt, view_count')
+    .select('id, thumbnail_url, video_url, prompt, view_count, like_count')
     .eq('is_public', true)
     .eq('status', 'completed')
     .order('created_at', { ascending: false })

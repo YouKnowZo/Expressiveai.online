@@ -39,8 +39,7 @@ export default function DisclaimerPage() {
             <section>
               <h2 className="mb-3 text-lg font-semibold text-white">2. No guarantee of accuracy or fitness</h2>
               <p>
-                AI-generated content may contain inaccuracies, omissions, or stylistic artifacts. You acknowledge that output may not be suitable
-                for legal, medical, financial, safety-critical, or compliance-sensitive purposes without independent review.
+                AI-generated content may contain inaccuracies, omissions, visual artifacts, repeated motion, or other limitations. Longer requested durations may extend or repeat a shorter generated scene and do not guarantee continuous unique footage. Output may not be suitable for legal, medical, financial, safety-critical, or compliance-sensitive purposes without independent review.
               </p>
             </section>
 
@@ -53,7 +52,14 @@ export default function DisclaimerPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-lg font-semibold text-white">4. Third-party providers</h2>
+              <h2 className="mb-3 text-lg font-semibold text-white">4. Duration and output quality</h2>
+              <p>
+                Requested duration is a target runtime, not a promise of continuous unique motion. Longer videos may repeat or extend generated scenes and can contain visual, temporal, or audio limitations. Review each export before relying on or distributing it.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-lg font-semibold text-white">5. Third-party providers</h2>
               <p>
                 We may rely on third-party infrastructure, model providers, and services to process requests. While we aim to maintain reliable service,
                 outages, restrictions, or limitations from those providers may affect the performance or availability of the platform.
@@ -61,7 +67,14 @@ export default function DisclaimerPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-lg font-semibold text-white">5. No professional advice</h2>
+              <h2 className="mb-3 text-lg font-semibold text-white">6. Synthetic media and responsible use</h2>
+              <p>
+                Outputs are AI-generated and may depict fictional events, people, places, or actions. They can be inaccurate, misleading, or resemble real people without representing their actual words or conduct. Do not present synthetic media as authentic footage; disclose AI generation where appropriate, respect privacy, publicity, copyright, and consent rights, and never use outputs to deceive, harass, or cause harm. You are responsible for checking applicable laws and obtaining permissions before publishing or commercializing an output. Provenance metadata may be removed by editing or re-encoding and is not a guarantee of authenticity or legal protection.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="mb-3 text-lg font-semibold text-white">7. No professional advice</h2>
               <p>
                 The platform is not a substitute for professional legal, financial, creative, medical, or technical advice. Any output should be reviewed by qualified professionals where required.
               </p>

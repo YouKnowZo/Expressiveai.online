@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  PlayCircle, ShieldCheck, RefreshCw, Heart,
-  Eye, Sparkles, Film, ArrowRight,
+  PlayCircle, RefreshCw, Eye, Sparkles, Film, ArrowRight,
 } from 'lucide-react';
+import { SiteHeader } from '@/components/SiteHeader';
 import { apiUrl } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -18,7 +18,6 @@ interface GalleryVideo {
   video_url: string | null;
   prompt: string;
   view_count: number;
-  like_count?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -43,7 +42,6 @@ export default function GalleryPage() {
   const [videos,    setVideos]    = useState<GalleryVideo[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [likedIds,  setLikedIds]  = useState<Set<string>>(new Set());
   const [error,     setError]     = useState<string | null>(null);
 
   const fetchGallery = useCallback(async (isRefresh = false) => {
@@ -52,9 +50,7 @@ export default function GalleryPage() {
     setError(null);
 
     try {
-      const res = await fetch(apiUrl('/api/generate/public'), {
-        next: { revalidate: 60 },
-      } as RequestInit);
+      const res = await fetch(apiUrl('/api/generate/public'), { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setVideos((data.videos ?? []) as GalleryVideo[]);
@@ -69,35 +65,10 @@ export default function GalleryPage() {
 
   useEffect(() => { fetchGallery(); }, [fetchGallery]);
 
-  const toggleLike = (id: string) => {
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   return (
     <div className="deep-space-bg min-h-screen flex flex-col text-slate-100">
 
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#0b0f19]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <Sparkles className="w-4 h-4 text-white" />
-            </span>
-            <span className="text-base font-bold tracking-tight gradient-text-premium hidden sm:block">
-              expressiveai.online
-            </span>
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <Link href="/pricing"    className="px-3 py-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/5 transition-colors">Pricing</Link>
-            <Link href="/dashboard"  className="px-3 py-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/5 transition-colors">Studio</Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
 
@@ -112,7 +83,7 @@ export default function GalleryPage() {
             <span className="gradient-text-premium">making</span>
           </h1>
           <p className="text-slate-400 text-sm max-w-xl mx-auto">
-            Public generations from the network — every clip forensically watermarked and verified.
+            Public creations shared by the community. AI-generated work can include artifacts; review each clip before reuse.
           </p>
         </div>
 
@@ -163,7 +134,7 @@ export default function GalleryPage() {
             <p className="text-slate-500 text-sm mt-1">Be the first to share your creation.</p>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600"
+              className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-full text-sm font-semibold text-white btn-premium"
             >
               Open Studio <ArrowRight className="w-4 h-4" />
             </Link>
@@ -174,7 +145,6 @@ export default function GalleryPage() {
         {!loading && videos.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {videos.map((vid, idx) => {
-              const liked = likedIds.has(vid.id);
               const hasPlayableVideo = typeof vid.video_url === 'string' && /^https?:\/\//i.test(vid.video_url);
               return (
                 <motion.div
@@ -190,6 +160,7 @@ export default function GalleryPage() {
                       <video
                         src={vid.video_url ?? undefined}
                         className="w-full h-full object-cover"
+                        controls
                         muted
                         playsInline
                         preload="metadata"
@@ -228,19 +199,6 @@ export default function GalleryPage() {
                       </div>
                     )}
 
-                    {/* Like button */}
-                    <button
-                      type="button"
-                      onClick={() => toggleLike(vid.id)}
-                      aria-label={liked ? 'Unlike' : 'Like'}
-                      className="absolute top-3 right-3 p-2 rounded-full glass-card opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95"
-                    >
-                      <Heart
-                        className={`w-4 h-4 transition-colors ${
-                          liked ? 'fill-red-400 text-red-400' : 'text-white/70'
-                        }`}
-                      />
-                    </button>
                   </div>
 
                   {/* Card body */}
@@ -253,14 +211,7 @@ export default function GalleryPage() {
                         <Eye className="w-3.5 h-3.5" />
                         {(vid.view_count ?? 0).toLocaleString()} views
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <Heart className={`w-3.5 h-3.5 ${liked ? 'text-red-400' : ''}`} />
-                        {((vid.like_count ?? 0) + (liked ? 1 : 0)).toLocaleString()}
-                      </span>
-                      <span className="flex items-center gap-1.5 ml-auto">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-emerald-500">Signed</span>
-                      </span>
+                      <span className="ml-auto inline-flex items-center rounded-full border border-indigo-300/15 bg-indigo-300/[0.06] px-2.5 py-1 text-[11px] font-medium tracking-wide text-indigo-200/80">AI generated</span>
                     </div>
                   </div>
                 </motion.div>
@@ -279,7 +230,7 @@ export default function GalleryPage() {
           <p className="text-slate-500 text-sm mb-4">Want yours featured here?</p>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/25 hover:from-indigo-500 hover:to-violet-500 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold text-white btn-premium"
           >
             <Sparkles className="w-4 h-4" />
             Create in the studio
