@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../index';
+import { authenticatedClerkId } from '../auth';
 import { z } from 'zod';
 
 type SupabaseUserRecord = {
@@ -25,10 +26,8 @@ const router = Router();
 // Returns the authenticated user's full profile including live credit balance.
 // ---------------------------------------------------------------------------
 router.get('/me', async (req: Request, res: Response) => {
-  const clerkId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
-  if (!clerkId) {
-    return res.status(400).json({ error: 'userId query parameter is required' });
-  }
+  const clerkId = await authenticatedClerkId(req, res);
+  if (!clerkId) return;
 
   const { data, error } = await supabase
     .from('users')
@@ -75,13 +74,18 @@ const syncBodySchema = z.object({
 });
 
 router.post('/sync', async (req: Request, res: Response) => {
+  const authenticatedId = await authenticatedClerkId(req, res);
+  if (!authenticatedId) return;
+
   const parsed = syncBodySchema.safeParse(req.body);
   if (!parsed.success) {
     const first = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? 'Invalid payload';
     return res.status(400).json({ error: first });
   }
 
-  const { clerkId, email, username, avatarUrl } = parsed.data;
+  const { email, username, avatarUrl } = parsed.data;
+  if (parsed.data.clerkId !== authenticatedId) return res.status(403).json({ error: 'Cannot sync another account.' });
+  const clerkId = authenticatedId;
 
   // Derive a fallback username if none supplied
   const resolvedUsername = username?.trim() || `user_${clerkId.slice(-8)}`;
@@ -155,13 +159,18 @@ const settingsBodySchema = z.object({
 });
 
 router.patch('/settings', async (req: Request, res: Response) => {
+  const authenticatedId = await authenticatedClerkId(req, res);
+  if (!authenticatedId) return;
+
   const parsed = settingsBodySchema.safeParse(req.body);
   if (!parsed.success) {
     const first = Object.values(parsed.error.flatten().fieldErrors)[0]?.[0] ?? 'Invalid payload';
     return res.status(400).json({ error: first });
   }
 
-  const { userId: clerkId, emailNotifications, publicProfile } = parsed.data;
+  const { userId, emailNotifications, publicProfile } = parsed.data;
+  if (userId !== authenticatedId) return res.status(403).json({ error: 'Cannot update another account.' });
+  const clerkId = authenticatedId;
 
   // Build update object with only provided fields
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };

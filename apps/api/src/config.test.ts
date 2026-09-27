@@ -13,6 +13,8 @@ describe('validateRuntimeEnv', () => {
       STRIPE_SECRET_KEY: 'sk_test_123',
       STRIPE_WEBHOOK_SECRET: 'whsec_123',
       CLERK_WEBHOOK_SECRET: 'whsec_clerk_123',
+      CLERK_ISSUER: 'https://example.clerk.accounts.dev',
+      CLERK_JWKS_URL: 'https://example.clerk.accounts.dev/.well-known/jwks.json',
       HF_TOKEN: 'hf_123',
       STORAGE_BUCKET: 'videos',
     };

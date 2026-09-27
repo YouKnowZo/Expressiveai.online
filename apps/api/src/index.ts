@@ -23,16 +23,17 @@ app.use(helmet());
 app.use(compression());
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json({ 
+app.use(express.json({
   limit: '50mb',
-  verify: (req: any, res, buf) => {
+  verify: (req: any, _res, buf) => {
     if (req.originalUrl.startsWith('/api/payments/webhook') ||
         req.originalUrl.startsWith('/api/webhooks/')) {
       req.rawBody = buf;
     }
-  }
+  },
 }));
 
 // Global rate limiting

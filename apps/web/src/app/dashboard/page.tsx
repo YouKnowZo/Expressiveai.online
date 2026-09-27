@@ -35,7 +35,7 @@ interface UserProfile {
 // Constants
 // ---------------------------------------------------------------------------
 const POLL_MS   = 4_000;
-const MAX_POLLS = 90;
+const MAX_POLLS = 180;
 
 // ---------------------------------------------------------------------------
 // Status badge config
@@ -58,7 +58,7 @@ const TIER_CONFIG: Record<string, { label: string; cls: string; icon: React.Reac
 // Component
 // ---------------------------------------------------------------------------
 export default function Dashboard() {
-  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn, userId, getToken } = useAuth();
   const { user }                          = useUser();
   const router                            = useRouter();
 
@@ -88,7 +88,7 @@ export default function Dashboard() {
   const fetchVideos = useCallback(async () => {
     if (!userId) return;
     try {
-      const res = await fetch(apiUrl(`/api/generate/my-videos?userId=${encodeURIComponent(userId)}`));
+      const res = await fetch(apiUrl('/api/generate/my-videos'), { headers: { Authorization: `Bearer ${await getToken() ?? ''}` } });
       if (res.ok) {
         const data = await res.json();
         setRecentVideos(data.videos ?? []);
@@ -98,12 +98,12 @@ export default function Dashboard() {
     } finally {
       setLoadingVideos(false);
     }
-  }, [userId]);
+  }, [userId, getToken]);
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
     try {
-      const res = await fetch(apiUrl(`/api/users/me?userId=${encodeURIComponent(userId)}`));
+      const res = await fetch(apiUrl('/api/users/me'), { headers: { Authorization: `Bearer ${await getToken() ?? ''}` } });
       if (res.ok) {
         const data = await res.json();
         setProfile({
@@ -115,7 +115,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error('fetchProfile error', err);
     }
-  }, [userId]);
+  }, [userId, getToken]);
 
   // ── Effects ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -129,6 +129,11 @@ export default function Dashboard() {
       fetchProfile();
     }
   }, [isSignedIn, userId, fetchVideos, fetchProfile]);
+
+  useEffect(() => {
+    if (profile?.tier === 'free' && lengthSec > 10) setLengthSec(5);
+    else if (profile?.tier === 'pro' && lengthSec > 30) setLengthSec(10);
+  }, [profile?.tier, lengthSec]);
 
   useEffect(() => () => clearPoll(), [clearPoll]);
 
@@ -146,7 +151,7 @@ export default function Dashboard() {
           return;
         }
         try {
-          const res  = await fetch(apiUrl(`/api/generate/status/${videoId}`));
+          const res  = await fetch(apiUrl(`/api/generate/status/${videoId}`), { headers: { Authorization: `Bearer ${await getToken() ?? ''}` } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Status check failed');
 
@@ -171,7 +176,7 @@ export default function Dashboard() {
         }
       }, POLL_MS);
     },
-    [clearPoll, fetchVideos, fetchProfile],
+    [clearPoll, fetchVideos, fetchProfile, getToken],
   );
 
   // ── Generate handler ─────────────────────────────────────────────────
@@ -181,13 +186,10 @@ export default function Dashboard() {
     const toastId = toast.loading('Queueing generation…');
 
     try {
-      const res = await fetch(apiUrl('/api/generate'), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(apiUrl('/api/generate'), {          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getToken() ?? ''}` },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          description: prompt.trim(),
-          userId,
           length: lengthSec,
         }),
       });
@@ -338,10 +340,20 @@ export default function Dashboard() {
                     <option value={30}>30 seconds</option>
                   )}
                   {(profile?.tier === 'creator' || profile?.tier === 'enterprise') && (
-                    <option value={60}>60 seconds</option>
+                    <>
+                      <option value={60}>1 minute</option>
+                      <option value={120}>2 minutes</option>
+                      <option value={180}>3 minutes</option>
+                      <option value={240}>4 minutes</option>
+                      <option value={300}>5 minutes</option>
+                    </>
                   )}
                 </select>
               </div>
+
+              <p className="max-w-2xl text-xs leading-5 text-slate-400">
+                AI-generated clips can contain visual or motion artifacts and may not accurately depict real events. Review outputs before sharing, and only use prompts and likenesses you have the right to use. Longer clips may extend a short generated scene to the selected runtime. <Link href="/disclaimer" className="text-indigo-300 underline underline-offset-2">Read the disclaimer</Link>.
+              </p>
 
               {/* No-credit warning */}
               <AnimatePresence>
@@ -488,7 +500,7 @@ export default function Dashboard() {
                           })}
                         </p>
                         {vid.length_seconds && (
-                          <span className="text-xs text-slate-500">{vid.length_seconds}s</span>
+                          <span className="text-xs text-slate-500">{vid.length_seconds >= 60 ? `${Math.floor(vid.length_seconds / 60)}m${vid.length_seconds % 60 ? ` ${vid.length_seconds % 60}s` : ''}` : `${vid.length_seconds}s`}</span>
                         )}
                       </div>
                     </div>
@@ -507,6 +519,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <Link href="/pricing" className="hover:text-slate-300 transition-colors">Buy credits</Link>
             <Link href="/gallery" className="hover:text-slate-300 transition-colors">Gallery</Link>
+            <Link href="/disclaimer" className="hover:text-slate-300 transition-colors">Disclaimer</Link>
           </div>
         </div>
       </footer>

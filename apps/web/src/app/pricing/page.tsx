@@ -4,20 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, SignInButton } from '@clerk/nextjs';
 import {
   Sparkles, Zap, Crown, Check, ChevronDown,
-  ArrowRight, ShieldCheck, Infinity,
+  ArrowRight, ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { loadStripe } from '@stripe/stripe-js';
 import { apiUrl } from '@/lib/api';
-
-// ---------------------------------------------------------------------------
-// Stripe singleton
-// ---------------------------------------------------------------------------
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''
-);
+import { SiteHeader } from '@/components/SiteHeader';
 
 // ---------------------------------------------------------------------------
 // Pricing data
@@ -40,52 +33,58 @@ const PLANS = [
       'Forensic watermarking',
       'Community gallery access',
     ],
-    missing: [
-      'Priority GPU queue',
-      'Commercial licence',
-      'HD resolution',
-    ],
+    missing: [],
   },
   {
-    id:       'pro_monthly',
-    name:     'Pro',
-    price:    '$15',
-    period:   '/ month',
+    id:       'starter_50',
+    name:     'Starter',
+    price:    '$5',
+    period:   'one-time',
     icon:     Sparkles,
-    credits:  200,
-    badge:    'Most popular',
+    credits:  50,
+    badge:    null,
     highlight: true,
-    cta:      'Start Pro',
+    cta:      'Buy 50 credits',
     features: [
-      '200 credits / month',
-      'Up to 30-second clips',
-      'Priority GPU queue',
-      'HD resolution output',
-      'Commercial licence',
-      'No visible watermark',
-      'Email support',
+      '50 generation credits',
+      'One-time payment',
+      'Credits added after payment confirmation',
+      'Up to 10-second clips',
     ],
     missing: [],
   },
   {
-    id:       'creator_monthly',
+    id:       'pro_200',
+    name:     'Pro',
+    price:    '$15',
+    period:   'one-time',
+    icon:     Sparkles,
+    credits:  200,
+    badge:    null,
+    highlight: false,
+    cta:      'Buy 200 credits',
+    features: [
+      '200 generation credits',
+      'One-time payment',
+      'Up to 30-second clips',
+    ],
+    missing: [],
+  },
+  {
+    id:       'creator_1000',
     name:     'Creator',
     price:    '$49',
-    period:   '/ month',
+    period:   'one-time',
     icon:     Crown,
-    credits:  null,
-    badge:    'Unlimited',
+    credits:  1000,
+    badge:    'Best value',
     highlight: false,
-    cta:      'Go Creator',
+    cta:      'Get Creator',
     features: [
-      'Unlimited credits',
-      'Up to 60-second clips',
-      'Dedicated GPU priority',
-      '4K resolution output',
-      'Full commercial licence',
-      'API access',
-      'Custom model fine-tuning',
-      'Priority support',
+      '1,000 generation credits',
+      'One-time payment',
+      'Unlocks Creator · clips up to 5 minutes*',
+      'Long clips extend or repeat a generated scene',
     ],
     missing: [],
   },
@@ -99,27 +98,35 @@ type PlanId = typeof PLANS[number]['id'];
 const FAQ = [
   {
     q: 'What counts as one credit?',
-    a: 'Each video generation request uses exactly one credit, regardless of length. Credits never expire.',
+    a: 'Each video generation request currently uses one credit, regardless of selected duration. Longer clips may extend or repeat a generated scene; the requested runtime does not guarantee continuous unique motion.',
   },
   {
     q: 'Can I use generated videos commercially?',
-    a: 'Pro and Creator subscribers receive a full commercial licence. Free-tier generations may include a forensic watermark and are for personal use only.',
+    a: 'Rights can depend on your plan, model provider terms, and applicable law. Review the Terms of Service and the provider’s terms before commercial use.',
   },
   {
-    q: 'What happens when I run out of credits on Pro/Creator?',
-    a: 'Pro and Creator plans renew monthly with a fresh allowance. Creator subscribers have unlimited credits and will never be throttled.',
+    q: 'Do credit packs renew?',
+    a: 'No. The credit packs shown are one-time purchases, not subscriptions. Generation availability and queue time may vary.',
+  },
+  {
+    q: 'How do plan limits work?',
+    a: 'Free and Starter accounts can generate up to 10 seconds, Pro up to 30 seconds, and Creator up to five minutes. Creator-length outputs may repeat or extend a generated scene rather than create continuous novel footage.',
   },
   {
     q: 'How does forensic watermarking work?',
-    a: 'Every video has an invisible cryptographic signature embedded in its metadata encoding your user ID, video ID, and a timestamp. This lets us trace any re-uploaded content back to its source.',
+    a: 'Generated exports include provenance metadata. Editing or re-encoding may remove it, and it is not a guarantee of ownership, authenticity, or legal protection.',
   },
   {
-    q: 'Can I cancel anytime?',
-    a: 'Yes — cancel from your account settings at any time. You retain access until the end of your billing period.',
+    q: 'How do longer video durations work?',
+    a: 'Longer clips may extend or repeat a short generated scene; the requested runtime does not guarantee continuous unique motion. See our disclaimer for details.',
   },
   {
-    q: 'Do you offer refunds?',
-    a: 'We offer a 7-day money-back guarantee on your first purchase if you are not satisfied.',
+    q: 'Are credit packs subscriptions?',
+    a: 'No. The credit packs currently offered are one-time purchases; they do not renew automatically. Pro/Creator access remains on your account tier after the one-time upgrade.',
+  },
+  {
+    q: 'How do I request a refund?',
+    a: 'See the Refund Policy for eligibility and contact support with your purchase details. Refunds are reviewed under that policy and are not automatic.',
   },
 ];
 
@@ -128,8 +135,7 @@ const FAQ = [
 // ---------------------------------------------------------------------------
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
-  return (
-    <div className="glass-card rounded-2xl overflow-hidden">
+  return (    <div className="glass-card rounded-2xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -164,7 +170,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 // Page
 // ---------------------------------------------------------------------------
 export default function PricingPage() {
-  const { isSignedIn, userId } = useAuth();
+  const { isSignedIn, userId, getToken } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handlePurchase = async (planId: string) => {
@@ -174,19 +180,12 @@ export default function PricingPage() {
 
     try {
       const res = await fetch(apiUrl('/api/payments/create-checkout-session'), {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, planId }),
+        method:  'POST',        headers:  { 'Content-Type': 'application/json', Authorization: `Bearer ${await getToken() ?? ''}` },
+        body: JSON.stringify({ planId }),
       });
       const data = await res.json();
 
-      if (data.sessionId) {
-        // Redirect via Stripe.js (preferred — avoids open-redirect)
-        const stripe = await stripePromise;
-        if (!stripe) throw new Error('Stripe failed to load');
-        toast.success('Redirecting to checkout…', { id: toastId });
-        await stripe.redirectToCheckout({ sessionId: data.sessionId });
-      } else if (data.url) {
+      if (data.url) {
         toast.success('Redirecting to checkout…', { id: toastId });
         window.location.href = data.url;
       } else {
@@ -201,23 +200,7 @@ export default function PricingPage() {
   return (
     <div className="deep-space-bg min-h-screen flex flex-col text-slate-100">
 
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#0b0f19]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <Sparkles className="w-4 h-4 text-white" />
-            </span>
-            <span className="text-base font-bold tracking-tight gradient-text-premium hidden sm:block">
-              expressiveai.online
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/gallery"   className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/5 transition-colors">Gallery</Link>
-            <Link href="/dashboard" className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 rounded-lg hover:bg-white/5 transition-colors">Studio</Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
 
@@ -228,7 +211,7 @@ export default function PricingPage() {
           transition={{ duration: 0.4 }}
           className="text-center max-w-3xl mx-auto mb-14"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card text-xs font-semibold text-violet-300 mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass-card text-xs font-semibold text-violet-200 mb-4">
             <ShieldCheck className="w-3.5 h-3.5" />
             Simple, transparent pricing
           </div>
@@ -237,12 +220,12 @@ export default function PricingPage() {
             <span className="gradient-text-premium">less.</span>
           </h1>
           <p className="text-slate-400 text-sm max-w-xl mx-auto">
-            Start free, upgrade when you need more. Cancel anytime — no lock-in.
+            Start with five free credits, then buy additional credits as you need them. Credit packs are one-time purchases, not subscriptions.
           </p>
         </motion.div>
 
         {/* ── Pricing cards ── */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-20">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto mb-20">
           {PLANS.map((plan, i) => {
             const Icon      = plan.icon;
             const isLoading = loadingPlan === plan.id;
@@ -268,7 +251,7 @@ export default function PricingPage() {
                         ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white'
                         : 'bg-fuchsia-600 text-white'
                     }`}>
-                      {plan.id === 'creator_monthly' && <Infinity className="w-3 h-3" />}
+                      {plan.badge === 'Best value' && <Zap className="w-3 h-3" />}
                       {plan.badge}
                     </span>
                   </div>
@@ -286,7 +269,7 @@ export default function PricingPage() {
                   <div>
                     <h2 className="text-lg font-bold text-white">{plan.name}</h2>
                     <p className="text-xs text-slate-400">
-                      {plan.credits !== null ? `${plan.credits} credits` : 'Unlimited credits'}
+                      {plan.credits !== null ? `${plan.credits} credits` : 'No credits'}
                     </p>
                   </div>
                 </div>
@@ -372,9 +355,9 @@ export default function PricingPage() {
           className="flex flex-wrap items-center justify-center gap-6 mb-20 text-sm text-slate-500"
         >
           {[
-            { icon: ShieldCheck, text: 'Payments secured by Stripe' },
-            { icon: Zap,         text: 'Credits never expire' },
-            { icon: ArrowRight,  text: '7-day money-back guarantee' },
+            { icon: ShieldCheck, text: 'Checkout powered by Stripe' },
+            { icon: Zap,         text: 'Credit packs are one-time purchases' },
+            { icon: ArrowRight,  text: 'Refund policy shown before support contact' },
           ].map(({ icon: Icon, text }) => (
             <div key={text} className="flex items-center gap-2">
               <Icon className="w-4 h-4 text-violet-400" />
@@ -408,6 +391,7 @@ export default function PricingPage() {
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/[0.07] py-6 mt-16">
+        <p className="mx-auto max-w-7xl px-4 pb-4 text-center text-xs text-slate-500">Video generation uses AI. Outputs may contain artifacts; longer clips may repeat or extend generated scenes. <Link href="/disclaimer" className="text-violet-300 underline underline-offset-2">Read the disclaimer.</Link></p>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
           <span>© {new Date().getFullYear()} ExpressiveAI.online</span>
           <div className="flex items-center gap-4">

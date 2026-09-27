@@ -7,8 +7,8 @@
  *  1. Update DB status → processing
  *  2. Call Hugging Face Inference API for video generation
  *  3. Save raw video to tmp filesystem
- *  4. Apply forensic watermark (ffmpeg metadata embed, zero re-encode)
- *  5. Upload watermarked video to Supabase Storage
+ *  4. Render the requested duration (loop the generated scene if needed)
+ *  5. Embed forensic metadata and upload the video to Supabase Storage
  *  6. Update DB status → completed with public URL
  *  7. Send in-app notification
  *  8. Cleanup tmp files (always, even on error)
@@ -22,6 +22,7 @@ import os from 'os';
 import path from 'path';
 import dotenv from 'dotenv';
 import { validateRuntimeEnv } from './config';
+import ffmpeg from 'fluent-ffmpeg';
 import { addForensicWatermark } from './utils/watermark';
 
 dotenv.config();
@@ -66,6 +67,20 @@ async function unlinkSafe(filePath: string) {
   }
 }
 
+/** Extend the model's short generated scene to the requested runtime. */
+function renderVideoToDuration(inputPath: string, outputPath: string, seconds: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .inputOptions('-stream_loop -1')
+      .outputOptions(`-t ${seconds}`, '-c:v libx264', '-preset veryfast', '-pix_fmt yuv420p', '-an', '-movflags +faststart')
+      .videoCodec('libx264')
+      .format('mp4')
+      .on('error', (error: Error) => reject(new Error(`Video duration rendering failed: ${error.message}`)))
+      .on('end', () => resolve())
+      .save(outputPath);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Job processor
 // ---------------------------------------------------------------------------
@@ -88,9 +103,10 @@ const worker = new Worker(
       isArtistic?: boolean;
     };
 
-    const tmpDir     = os.tmpdir();
-    const rawPath    = path.join(tmpDir, `${videoId}-raw.mp4`);
-    const signedPath = path.join(tmpDir, `${videoId}-wm.mp4`);
+    const tmpDir       = os.tmpdir();
+    const rawPath      = path.join(tmpDir, `${videoId}-raw.mp4`);
+    const renderedPath = path.join(tmpDir, `${videoId}-rendered.mp4`);
+    const signedPath   = path.join(tmpDir, `${videoId}-wm.mp4`);
 
     console.log(`[worker] ▶ Processing video ${videoId}: "${prompt.substring(0, 60)}…"`);
 
@@ -99,48 +115,60 @@ const worker = new Worker(
       await setProgress(videoId, 10, { status: 'processing' });
 
       // ── Step 2: Hugging Face Inference API ────────────────────────────
-      const model = length <= 10
-        ? 'damo-vilab/text-to-video-ms-1.7b'
-        : 'ali-vilab/text-to-video-ms-2.5b';
+      // Hugging Face Inference Providers documents this model for text-to-video.
+      // Its task API returns raw video bytes; the requested longer duration is
+      // produced by the FFmpeg extension stage below.
+      const model = process.env.HUGGINGFACE_MODEL_ID || 'Wan-AI/Wan2.1-T2V-1.3B';
 
       const fullPrompt = isArtistic ? `Artistic interpretation of: ${prompt}` : prompt;
 
       console.log(`[worker] Calling HF model ${model}…`);
       const hfResponse = await fetch(
-        `https://api-inference.huggingface.co/models/${model}`,
+        `https://router.huggingface.co/hf-inference/models/${model}`,
         {
           method:  'POST',
           headers: {
             Authorization:  `Bearer ${process.env.HF_TOKEN}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ inputs: fullPrompt }),
+          body: JSON.stringify({
+            inputs: fullPrompt,
+            parameters: { num_frames: Math.min(length * 8, 240), num_inference_steps: 30 },
+          }),
         }
       );
 
       if (!hfResponse.ok) {
         const errText = await hfResponse.text().catch(() => hfResponse.statusText);
-        throw new Error(`HF API error ${hfResponse.status}: ${errText}`);
+        throw new Error(`Hugging Face Inference Providers error ${hfResponse.status}: ${errText}`);
       }
 
       await setProgress(videoId, 60);
 
       const videoBuffer = Buffer.from(await hfResponse.arrayBuffer());
+      if (videoBuffer.byteLength < 1024 || !videoBuffer.subarray(0, 64).toString('ascii').includes('ftyp')) {
+        throw new Error('The video provider returned an unexpected response instead of an MP4 video.');
+      }
       console.log(`[worker] Received ${(videoBuffer.byteLength / 1024).toFixed(1)} KB from HF`);
 
       // ── Step 3: Write raw video to tmp ────────────────────────────────
       await fs.writeFile(rawPath, videoBuffer);
       await setProgress(videoId, 70);
 
-      // ── Step 4: Apply forensic watermark (zero re-encode) ─────────────
+      // ── Step 4: Render the selected runtime (longer clips loop the scene) ─
+      console.log(`[worker] Rendering ${length}s video → ${renderedPath}`);
+      await renderVideoToDuration(rawPath, renderedPath, length);
+      await setProgress(videoId, 78);
+
+      // ── Step 5: Apply forensic metadata watermark ─────────────────────
       console.log(`[worker] Applying forensic watermark → ${signedPath}`);
-      await addForensicWatermark(rawPath, signedPath, {
+      await addForensicWatermark(renderedPath, signedPath, {
         userId:  clerkId,
         videoId,
       });
       await setProgress(videoId, 82);
 
-      // ── Step 5: Upload watermarked video to Supabase Storage ──────────
+      // ── Step 6: Upload watermarked video to Supabase Storage ──────────
       const signedBuffer = await fs.readFile(signedPath);
       const storagePath  = `${videoId}.mp4`;
 
@@ -166,7 +194,7 @@ const worker = new Worker(
 
       await setProgress(videoId, 95);
 
-      // ── Step 6: Mark as completed ─────────────────────────────────────
+      // ── Step 7: Mark as completed ─────────────────────────────────────
       await supabase
         .from('videos')
         .update({
@@ -178,7 +206,7 @@ const worker = new Worker(
         })
         .eq('id', videoId);
 
-      // ── Step 7: Increment user's total_videos counter ─────────────────
+      // ── Step 8: Increment user's total_videos counter ─────────────────
       // Use rpc if available; fall back to a read-then-write
       const { data: userRow } = await supabase
         .from('users')
@@ -193,7 +221,7 @@ const worker = new Worker(
           .eq('id', dbUserId);
       }
 
-      // ── Step 8: In-app notification ───────────────────────────────────
+      // ── Step 9: In-app notification ───────────────────────────────────
       await supabase.from('notifications').insert({
         user_id: dbUserId,
         type:    'video_ready',
@@ -223,6 +251,7 @@ const worker = new Worker(
       // ── Always clean up tmp files ──────────────────────────────────────
       await Promise.all([
         unlinkSafe(rawPath),
+        unlinkSafe(renderedPath),
         unlinkSafe(signedPath),
       ]);
     }

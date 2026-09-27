@@ -18,3 +18,14 @@ export function apiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${getApiBase()}${p}`;
 }
+
+export async function authenticatedApiFetch(
+  path: string,
+  getToken: () => Promise<string | null>,
+  init: RequestInit = {},
+): Promise<Response> {
+  const token = await getToken();
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(apiUrl(path), { ...init, headers });
+}
