@@ -85,19 +85,24 @@ those values (see below).
    `apps/api/.env`, and the repo-root `.env` / `.env.local` to `*.backup` (matched by `.gitignore`),
    restart, and confirm the apps still boot.
 
-## 5. CI/CD and production (manual)
+## 5. CI/CD and production (identity is manual)
 
-Never use interactive login outside your machine.
+Never use interactive login outside your machine. `.github/workflows/deploy.yml` is already wired to
+read application secrets from Infisical; what only you can do is create the identity it authenticates
+as. The Vercel and Render credentials stay as GitHub secrets because they belong to the deploy
+toolchain, not to the application.
 
 1. Create a **machine identity** per workload — see
    <https://infisical.com/docs/documentation/platform/identities/machine-identities> — and enable
    **Universal Auth** on it: <https://infisical.com/docs/documentation/platform/identities/universal-auth>.
 2. Add the identity to exactly one project and give it read access to the minimum environment it
-   needs (`prod` for the API/worker, `prod` for the web build). Do not grant organization-wide roles.
+   needs. The workflow identity belongs to `expressiveai-web` with read access to `prod` only. Do not
+   grant organization-wide roles.
 3. Add a **Client Secret** to the identity, then store the Client ID and Client Secret in the
    platform's own secret store — never in a file in this repo:
-   - GitHub Actions: repository secrets `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET`,
-     `INFISICAL_PROJECT_ID`.
+   - GitHub Actions: repository secrets `INFISICAL_CLIENT_ID` and `INFISICAL_CLIENT_SECRET`, taken
+     from that identity's Universal Auth configuration. The project slug (`expressiveai-web`) and
+     environment slug (`prod`) are not secrets and are committed in the workflow file.
    - Vercel: project environment variables, or use Infisical's Vercel secret sync —
      <https://infisical.com/docs/integrations/secret-syncs/overview>. Next.js inlines `NEXT_PUBLIC_*`
      at build time, so the values must be present during the Vercel build, and Vercel never calls
@@ -116,22 +121,29 @@ Never use interactive login outside your machine.
      Or run the already-wrapped script (`pnpm --filter @expressiveai/api start`) with that
      `INFISICAL_TOKEN` exported. The committed `.infisical.json` supplies the project id, so
      `--projectId` is only needed if the working directory is not the app directory.
-4. GitHub Actions can pull straight from Infisical with the official action instead of repository
-   secrets — see <https://infisical.com/docs/integrations/cicd/githubactions>:
+4. How the workflow fetches secrets. `.github/workflows/deploy.yml` runs
+   `Infisical/secrets-action@v1` in two places — the `lint-and-build` job before `pnpm build`, and the
+   `deploy-web` job before `vercel build` — because Next.js inlines `NEXT_PUBLIC_*` into the bundle at
+   build time. See <https://infisical.com/docs/integrations/cicd/githubactions>.
 
    ```yaml
-   - uses: infisical/secrets-action@v1
+   - name: Fetch web build secrets from Infisical
+     uses: Infisical/secrets-action@v1
      with:
-       method: universal-auth
        client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
        client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
        project-slug: expressiveai-web
        env-slug: prod
    ```
 
-   The workflow files in this repo have **not** been switched over, because doing so fails the
-   pipeline until the identity above exists. `.github/workflows/deploy.yml` still reads
-   `NEXT_PUBLIC_*` from repository secrets.
+   The action exports every secret in that project/environment to the rest of the job and registers
+   each as a masked value, so keep `expressiveai-web` limited to `NEXT_PUBLIC_*` keys. Those four
+   values are no longer GitHub repository secrets and can be deleted there once this is in place.
+
+   The workflow will fail at the action step until the identity above exists. To drop the last stored
+   credential entirely, switch the identity to OIDC auth with subject
+   `repo:YouKnowZo/Expressiveai.online:ref:refs/heads/main`, add `permissions: id-token: write` to the
+   job, and replace the `client-id`/`client-secret` inputs with `method: "oidc"` and `identity-id`.
 
 ## 6. Verify it works
 
