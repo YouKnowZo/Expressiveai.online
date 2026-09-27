@@ -28,13 +28,15 @@ The public home, pricing, and gallery pages do not need external credentials. A 
 
 ### Important video-duration limitation
 
-The current inference provider generates a short source scene; FFmpeg can extend/loop that source to a requested runtime. The selector/API supports up to five minutes for Creator/Enterprise accounts, but this is **not five minutes of novel generated footage**. The five-minute path must be load-tested against worker CPU/disk limits, object-store upload limits, and provider terms before promising it commercially. Hugging Face’s documented task output is raw video bytes; longer output generation depends on the local FFmpeg extension stage, not on the provider generating five minutes in one call.
+The worker submits an 81-frame source-scene request through Hugging Face's routed fal-ai queue, downloads the result, then uses FFmpeg to loop/re-encode it to the requested runtime. The selector/API supports up to five minutes for Creator/Enterprise accounts, but this is **not five minutes of novel generated footage** and audio from the source clip is removed. Install both `ffmpeg` and `ffprobe` in the worker runtime. Before promising five-minute outputs commercially, load-test worker CPU/disk capacity, object-store upload limits, and provider terms.
 
 ## Checkout fulfillment setup
 
 Stripe credit packs are one-time payments. Before enabling payments, run `packages/database/src/migrations/20260926_secure_credit_fulfillment.sql` in Supabase SQL editor. The verified Stripe webhook calls this atomic, idempotent RPC so retries cannot grant credits twice. Test with Stripe test keys and Stripe CLI before switching to live keys.
 
 ## Production checklist
+
+The worker runtime also needs the `ffmpeg` and `ffprobe` executables available on `PATH` for rendering, probing, and metadata embedding.
 
 Required runtime values include:
 
@@ -48,5 +50,7 @@ Before production, confirm API/worker connectivity, Clerk session verification, 
 
 - `pnpm --filter @expressiveai/api test -- --run`
 - `pnpm --filter @expressiveai/api build`
+- `pnpm --filter @expressiveai/worker build`
+- `pnpm --filter @expressiveai/worker exec tsx --test src/utils/video-processing.test.ts`
 - `pnpm --filter @expressiveai/worker exec tsc --noEmit`
 - `pnpm --filter @expressiveai/web build`

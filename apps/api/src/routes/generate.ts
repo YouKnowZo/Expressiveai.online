@@ -128,7 +128,7 @@ router.post('/', async (req: Request, res: Response) => {
       success: true,
       videoId,
       status: 'queued',
-      estimatedTime: Math.max(30, length * 4),
+      estimatedTime: Math.max(60, length * 6),
       artisticMode: moderation.isArtistic,
       message: moderation.isArtistic
         ? '🎨 Artistic mode activated — your unique vision is being created'
