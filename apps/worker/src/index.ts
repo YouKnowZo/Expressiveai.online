@@ -22,8 +22,15 @@ import os from 'os';
 import path from 'path';
 import dotenv from 'dotenv';
 import { validateRuntimeEnv } from './config';
-import ffmpeg from 'fluent-ffmpeg';
 import { addForensicWatermark } from './utils/watermark';
+import {
+  generateSourceVideo,
+  probeVideoDuration,
+  renderVideoToDuration,
+  uploadVideoResumable,
+} from './utils/video-processing';
+
+const TARGET_DURATION_TOLERANCE_SECONDS = 0.5;
 
 dotenv.config();
 validateRuntimeEnv(process.env, process.env.NODE_ENV === 'production');
@@ -67,20 +74,6 @@ async function unlinkSafe(filePath: string) {
   }
 }
 
-/** Extend the model's short generated scene to the requested runtime. */
-function renderVideoToDuration(inputPath: string, outputPath: string, seconds: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
-      .inputOptions('-stream_loop -1')
-      .outputOptions(`-t ${seconds}`, '-c:v libx264', '-preset veryfast', '-pix_fmt yuv420p', '-an', '-movflags +faststart')
-      .videoCodec('libx264')
-      .format('mp4')
-      .on('error', (error: Error) => reject(new Error(`Video duration rendering failed: ${error.message}`)))
-      .on('end', () => resolve())
-      .save(outputPath);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Job processor
 // ---------------------------------------------------------------------------
@@ -94,13 +87,15 @@ const worker = new Worker(
       clerkId,
       dbUserId,
       isArtistic,
+      negativePrompt,
     } = job.data as {
-      videoId:    string;
-      prompt:     string;
-      length:     number;
-      clerkId:    string;
-      dbUserId:   string;
-      isArtistic?: boolean;
+      videoId:       string;
+      prompt:        string;
+      length:        number;
+      clerkId:       string;
+      dbUserId:      string;
+      negativePrompt?: string;
+      isArtistic?:   boolean;
     };
 
     const tmpDir       = os.tmpdir();
@@ -109,55 +104,54 @@ const worker = new Worker(
     const signedPath   = path.join(tmpDir, `${videoId}-wm.mp4`);
 
     console.log(`[worker] ▶ Processing video ${videoId}: "${prompt.substring(0, 60)}…"`);
-
     try {
       // ── Step 1: Mark as processing ────────────────────────────────────
       await setProgress(videoId, 10, { status: 'processing' });
 
-      // ── Step 2: Hugging Face Inference API ────────────────────────────
-      // Hugging Face Inference Providers documents this model for text-to-video.
-      // Its task API returns raw video bytes; the requested longer duration is
-      // produced by the FFmpeg extension stage below.
+      // ── Step 2: Generate one short scene with a live HF video provider ──
+      // Wan/Fal creates a supported short source clip; FFmpeg below extends it
+      // to the requested runtime instead of asking the model for hundreds of frames.
       const model = process.env.HUGGINGFACE_MODEL_ID || 'Wan-AI/Wan2.1-T2V-1.3B';
-
       const fullPrompt = isArtistic ? `Artistic interpretation of: ${prompt}` : prompt;
 
-      console.log(`[worker] Calling HF model ${model}…`);
-      const hfResponse = await fetch(
-        `https://router.huggingface.co/hf-inference/models/${model}`,
-        {
-          method:  'POST',
-          headers: {
-            Authorization:  `Bearer ${process.env.HF_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputs: fullPrompt,
-            parameters: { num_frames: Math.min(length * 8, 240), num_inference_steps: 30 },
-          }),
-        }
-      );
+      console.log(`[worker] Requesting short source scene from HF model ${model}…`);
+      await generateSourceVideo({
+        modelId: model,
+        prompt: fullPrompt,
+        negativePrompt,
+        token: process.env.HF_TOKEN || '',
+        outputPath: rawPath,
+        onProgress: (progress) => setProgress(videoId, progress),
+      });
 
-      if (!hfResponse.ok) {
-        const errText = await hfResponse.text().catch(() => hfResponse.statusText);
-        throw new Error(`Hugging Face Inference Providers error ${hfResponse.status}: ${errText}`);
+      const sourceDuration = await probeVideoDuration(rawPath);
+      if (sourceDuration < 0.5) {
+        throw new Error('The video provider returned an unexpectedly short or empty MP4 scene.');
       }
+      console.log(`[worker] Received a ${sourceDuration.toFixed(2)}s source scene from HF`);
 
-      await setProgress(videoId, 60);
+      // ── Step 3: Extend the generated scene to the requested runtime ────
+      console.log(`[worker] Rendering ${length}s MP4 → ${renderedPath}`);
+      let lastRenderProgress = 61;
+      await renderVideoToDuration({
+        inputPath: rawPath,
+        outputPath: renderedPath,
+        seconds: length,
+        onProgress: (progress) => {
+          const renderProgress = Math.min(78, 62 + Math.floor(progress * 16));
+          if (renderProgress > lastRenderProgress) {
+            lastRenderProgress = renderProgress;
+            void setProgress(videoId, renderProgress);
+          }
+        },
+      });
 
-      const videoBuffer = Buffer.from(await hfResponse.arrayBuffer());
-      if (videoBuffer.byteLength < 1024 || !videoBuffer.subarray(0, 64).toString('ascii').includes('ftyp')) {
-        throw new Error('The video provider returned an unexpected response instead of an MP4 video.');
+      const renderedDuration = await probeVideoDuration(renderedPath);
+      if (Math.abs(renderedDuration - length) > TARGET_DURATION_TOLERANCE_SECONDS) {
+        throw new Error(
+          `Rendered video duration was ${renderedDuration.toFixed(2)}s; expected ${length}s.`,
+        );
       }
-      console.log(`[worker] Received ${(videoBuffer.byteLength / 1024).toFixed(1)} KB from HF`);
-
-      // ── Step 3: Write raw video to tmp ────────────────────────────────
-      await fs.writeFile(rawPath, videoBuffer);
-      await setProgress(videoId, 70);
-
-      // ── Step 4: Render the selected runtime (longer clips loop the scene) ─
-      console.log(`[worker] Rendering ${length}s video → ${renderedPath}`);
-      await renderVideoToDuration(rawPath, renderedPath, length);
       await setProgress(videoId, 78);
 
       // ── Step 5: Apply forensic metadata watermark ─────────────────────
@@ -168,20 +162,19 @@ const worker = new Worker(
       });
       await setProgress(videoId, 82);
 
-      // ── Step 6: Upload watermarked video to Supabase Storage ──────────
-      const signedBuffer = await fs.readFile(signedPath);
-      const storagePath  = `${videoId}.mp4`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(process.env.STORAGE_BUCKET || 'videos')
-        .upload(storagePath, signedBuffer, {
-          contentType: 'video/mp4',
-          upsert:      true,
-        });
-
-      if (uploadError) {
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
-      }
+      // ── Step 6: Stream the MP4 into Supabase with resumable Tus chunks ─
+      const storagePath = `${videoId}.mp4`;
+      await uploadVideoResumable({
+        supabaseUrl: process.env.SUPABASE_URL || 'http://localhost',
+        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'anon',
+        bucketName: process.env.STORAGE_BUCKET || 'videos',
+        objectName: storagePath,
+        filePath: signedPath,
+        onProgress: (uploadedBytes, totalBytes) => {
+          const uploadProgress = totalBytes > 0 ? uploadedBytes / totalBytes : 0;
+          void setProgress(videoId, 82 + Math.floor(uploadProgress * 10));
+        },
+      });
 
       const { data: publicUrlData } = supabase.storage
         .from(process.env.STORAGE_BUCKET || 'videos')
@@ -258,7 +251,7 @@ const worker = new Worker(
   },
   {
     connection: redis,
-    concurrency: 2,          // process up to 2 videos simultaneously
+    concurrency: 1,          // long MP4 transcodes are CPU- and disk-intensive
     limiter: {
       max:      10,
       duration: 60_000,      // max 10 jobs/min to stay within HF rate limits

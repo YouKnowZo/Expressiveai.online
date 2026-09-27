@@ -21,8 +21,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: dark)',  color: '#0b0f19' },
-    { media: '(prefers-color-scheme: light)', color: '#0b0f19' },
+    { media: '(prefers-color-scheme: dark)',  color: '#090b15' },
+    { media: '(prefers-color-scheme: light)', color: '#090b15' },
   ],
   colorScheme: 'dark',
 };
@@ -136,14 +136,14 @@ export default function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary:    '#818cf8',
-          colorBackground: '#0b0f19',
+          colorPrimary:    '#8b82f6',
+          colorBackground: '#101426',
           colorText:       '#f1f5f9',
           colorInputBackground: '#1e293b',
           colorInputText:  '#f1f5f9',
         },
         elements: {
-          card:              'bg-slate-900/90 border border-white/10 shadow-2xl backdrop-blur-xl',
+          card:              'bg-[#101426]/95 border border-indigo-200/10 shadow-2xl backdrop-blur-xl',
           headerTitle:       'text-white',
           headerSubtitle:    'text-slate-400',
           formButtonPrimary: 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white',

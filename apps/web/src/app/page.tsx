@@ -133,7 +133,7 @@ export default function LandingPage() {
         setCredits(current => Math.max(0, current - 1));
 
         setGeneratorStatus(data.artisticMode ? 'Artistic mode · in queue' : 'Generation queued');
-        for (let attempt = 0; attempt < 180; attempt += 1) {
+        for (let attempt = 0; attempt < 900; attempt += 1) {
           await new Promise(resolve => window.setTimeout(resolve, 5000));
           const statusResponse = await fetch(apiUrl(`/api/generate/status/${data.videoId}`), {
             headers: { Authorization: `Bearer ${await getToken() ?? ''}` },
@@ -154,7 +154,7 @@ export default function LandingPage() {
           }
           setGeneratorStatus(statusData.status === 'processing' ? 'Rendering your video…' : 'Waiting in the generation queue…');
         }
-        throw new Error('Generation is taking longer than expected. Check your video library shortly.');
+        throw new Error('Generation is still running. You can check its status in your video library.');
       } catch (error) {
         console.error('Landing generation request failed:', error);
         setGeneratorStatus(error instanceof Error ? error.message : 'Generation failed. Try again.');
@@ -173,9 +173,9 @@ export default function LandingPage() {
       
       {/* Ambient Orbs */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute top-[-200px] left-[-100px] w-[520px] h-[520px] bg-indigo-500/[0.06] rounded-full blur-[120px] animate-pulse-soft" />
-        <div className="absolute top-[28%] right-[-180px] w-[420px] h-[420px] bg-violet-500/[0.05] rounded-full blur-[110px] animate-pulse-soft delay-200" />
-        <div className="absolute bottom-[-80px] left-[25%] w-[360px] h-[360px] bg-sky-500/[0.04] rounded-full blur-[100px] animate-pulse-soft delay-400" />
+        <div className="ambient-orb ambient-orb--slow absolute top-[-200px] left-[-100px] w-[520px] h-[520px] bg-indigo-500/[0.12] rounded-full blur-[120px]" />
+        <div className="ambient-orb ambient-orb--fast absolute top-[28%] right-[-180px] w-[420px] h-[420px] bg-cyan-400/[0.09] rounded-full blur-[110px]" />
+        <div className="ambient-orb ambient-orb--reverse absolute bottom-[-80px] left-[25%] w-[360px] h-[360px] bg-fuchsia-500/[0.08] rounded-full blur-[100px]" />
       </div>
 
       <SiteHeader />

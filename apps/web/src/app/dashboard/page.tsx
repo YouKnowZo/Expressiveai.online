@@ -35,7 +35,7 @@ interface UserProfile {
 // Constants
 // ---------------------------------------------------------------------------
 const POLL_MS   = 4_000;
-const MAX_POLLS = 180;
+const MAX_POLLS = 900;
 
 // ---------------------------------------------------------------------------
 // Status badge config
@@ -146,7 +146,7 @@ export default function Dashboard() {
         if (pollCountRef.current > MAX_POLLS) {
           clearPoll();
           setIsGenerating(false);
-          toast.error('Generation is taking longer than expected. Check back shortly.', { id: toastId });
+          toast.error('Updates paused. Your generation may still be processing; check your library later.', { id: toastId });
           fetchVideos();
           return;
         }
@@ -169,7 +169,7 @@ export default function Dashboard() {
             fetchProfile();
           } else {
             const p = typeof data.progress === 'number' ? data.progress : 0;
-            toast.loading(`Processing… ${p}%`, { id: toastId });
+            toast.loading(p >= 62 ? `Rendering your video… ${p}%` : `Processing… ${p}%`, { id: toastId });
           }
         } catch (e) {
           console.error('Polling error', e);
