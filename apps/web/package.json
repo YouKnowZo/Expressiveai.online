@@ -2,9 +2,11 @@
   "name": "@expressiveai/web",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "infisical run --env=dev -- next dev",
+    "dev:local": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "infisical run --env=prod -- next start",
+    "start:local": "next start",
     "lint": "next lint"
   },
   "dependencies": {

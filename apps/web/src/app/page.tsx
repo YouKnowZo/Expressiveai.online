@@ -558,7 +558,7 @@ export default function LandingPage() {
                   </div>
                   <span className="text-sm font-bold gradient-text-premium">expressiveai.online</span>
                 </div>
-                <p className="text-xs text-slate-600">© {new Date().getFullYear()} ExpressiveAI. All rights reserved.</p>
+                <p className="text-xs text-slate-600">© {new Date().getFullYear()} ExpressiveAI by Paperbagexpress. All rights reserved.</p>
               </div>
             </div>
           </div>

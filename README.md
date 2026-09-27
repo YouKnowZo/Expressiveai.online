@@ -4,12 +4,13 @@ ExpressiveAI is a Next.js + Express application with Clerk authentication, Supab
 
 ## Local startup
 
+Secrets are delivered at runtime by Infisical instead of being read from `.env` files on disk. The one-time account, project and CLI setup is in [`docs/infisical.md`](docs/infisical.md).
+
 1. Install dependencies with `pnpm install`.
-2. Copy `.env.example` into the relevant app-specific env files (do not commit secrets):
-   - `apps/web/.env.local`
-   - `apps/api/.env`
-   - `apps/worker/.env`
-3. Start the monorepo with `pnpm dev`.
+2. Install and log in to the Infisical CLI, then run `infisical init` inside `apps/web`, `apps/api` and `apps/worker` so each app links to its Infisical project. That writes a `.infisical.json` per app, which contains no secrets and is safe to commit.
+3. Start the monorepo with `pnpm dev`. Each app's `dev` script runs `infisical run --env=dev -- …`, so no `.env` file is needed locally and application code still reads `process.env` unchanged.
+
+If you have not onboarded to Infisical yet, run the unwrapped scripts instead: `pnpm --filter @expressiveai/web dev:local` (also available as `dev:local` / `start:local` in the API and worker).
 
 ## Recommended providers and account setup
 

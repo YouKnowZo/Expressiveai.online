@@ -515,7 +515,7 @@ export default function Dashboard() {
       {/* ── Footer ── */}
       <footer className="border-t border-white/[0.07] py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
-          <span>© {new Date().getFullYear()} ExpressiveAI.online</span>
+          <span>© {new Date().getFullYear()} ExpressiveAI.online by Paperbagexpress</span>
           <div className="flex items-center gap-4">
             <Link href="/pricing" className="hover:text-slate-300 transition-colors">Buy credits</Link>
             <Link href="/gallery" className="hover:text-slate-300 transition-colors">Gallery</Link>
